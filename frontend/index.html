@@ -245,6 +245,60 @@
 
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
 
+        // 🔥 PHASE 1: TACTICAL PREDICTIVE SCANNER 🔥
+        // Allows the user to click anywhere on the empty map to run a Pre-Crime AI scan
+        map.on('click', async function(e) {
+            // Only allow scanning in Tactical Mode
+            if(document.body.className !== 'view-tactical') return; 
+
+            const lat = e.latlng.lat;
+            const lon = e.latlng.lng;
+
+            // 1. Draw a glowing cyan scanning ring
+            const scanRing = L.circle([lat, lon], {
+                color: '#00f3ff', weight: 2,
+                fillColor: '#00f3ff', fillOpacity: 0.1,
+                radius: 40000, // 40km scan radius
+                dashArray: '4, 6'
+            }).addTo(map);
+
+            scanRing.bindPopup(`<span style="color:var(--neon-cyan); font-family:monospace;">Initiating Orbital Scan...</span>`).openPopup();
+            logAIStream(`Initiating predictive AI scan at sector [${lat.toFixed(2)}, ${lon.toFixed(2)}]...`);
+
+            try {
+                // 2. Ping the new backend engine we just built
+                const res = await fetch(`${backendUrl}/api/ignition_risk?lat=${lat}&lon=${lon}`);
+                const data = await res.json();
+
+                if(data.status === "success") {
+                    // 3. Change ring color based on AI Threat Level
+                    let riskVal = parseFloat(data.ignition_probability);
+                    let color = riskVal >= 75 ? '#ff3b30' : (riskVal >= 50 ? '#ff9f0a' : '#10b981');
+                    
+                    scanRing.setStyle({ color: color, fillColor: color, fillOpacity: 0.2, dashArray: '' });
+                    
+                    // 4. Inject the HUD data
+                    scanRing.setPopupContent(`
+                        <div style="font-family: monospace; font-size: 0.8rem; min-width: 220px; line-height: 1.5;">
+                            <b style="color:${color}; font-size: 0.95rem;">PREDICTIVE AI ANALYSIS</b><br><br>
+                            🌡️ <span style="color:#a1a1aa;">TEMP:</span> ${data.telemetry.temp_c}°C<br>
+                            💧 <span style="color:#a1a1aa;">HUMIDITY:</span> ${data.telemetry.humidity}<br>
+                            💨 <span style="color:#a1a1aa;">WIND:</span> ${data.telemetry.wind_kmh} km/h<br>
+                            ⚠️ <span style="color:#a1a1aa;">STATUS:</span> <b style="color:${color}">${data.ai_status}</b><br>
+                            🔥 <span style="color:#a1a1aa;">IGNITION PROBABILITY:</span> <b style="font-size:1.1rem; color:${color}">${data.ignition_probability}</b>
+                        </div>
+                    `);
+                    logAIStream(`Sector scan complete. Ignition risk: ${data.ignition_probability}`);
+                } else {
+                    map.removeLayer(scanRing);
+                    logAIStream(`<span style="color:var(--neon-red)">Scan failed: Atmospheric interference.</span>`);
+                }
+            } catch (err) {
+                map.removeLayer(scanRing);
+                logAIStream(`<span style="color:var(--neon-red)">CRITICAL: Uplink failed during sector scan.</span>`);
+            }
+        });
+
         function switchMode(mode) {
             document.body.className = `view-${mode}`;
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));

@@ -151,3 +151,65 @@ def get_active_fires():
             return {"status": "error", "message": "NASA uplink rejected."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# 🔥 NEW PHASE 1 ENDPOINT: PREDICTIVE IGNITION AI 🔥
+@app.get("/api/ignition_risk")
+def calculate_ignition_risk(lat: float, lon: float):
+    if not OWM_KEY:
+        return {"error": "Missing API Key"}
+
+    # Fetch current weather data for the coordinate in Metric (Celsius)
+    url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OWM_KEY}&units=metric"
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            
+            temp_c = data["main"]["temp"]
+            humidity = data["main"]["humidity"]
+            wind_speed_kmh = data["wind"]["speed"] * 3.6 # Convert m/s to km/h
+
+            # The Hackathon Ignition Matrix Algorithm
+            # 1. Temperature factor (maxes out around 40C)
+            temp_factor = min(temp_c / 40.0, 1.0) * 0.4 
+            
+            # 2. Wind factor (maxes out around 50km/h)
+            wind_factor = min(wind_speed_kmh / 50.0, 1.0) * 0.3 
+            
+            # 3. Dryness factor (Inverse of humidity)
+            dryness_factor = ((100 - humidity) / 100.0) * 0.3 
+
+            # Base probability calculation (0.0 to 1.0)
+            raw_probability = temp_factor + wind_factor + dryness_factor
+            
+            # Penalize cold/wet environments aggressively
+            if temp_c < 10 or humidity > 80:
+                raw_probability *= 0.2
+
+            ignition_risk_percent = round(raw_probability * 100, 1)
+
+            # Determine AI Threat Level Status
+            if ignition_risk_percent >= 75:
+                status = "CRITICAL IGNITION WARNING"
+            elif ignition_risk_percent >= 50:
+                status = "ELEVATED RISK"
+            else:
+                status = "NOMINAL"
+
+            return {
+                "status": "success",
+                "lat": lat,
+                "lon": lon,
+                "ignition_probability": f"{ignition_risk_percent}%",
+                "telemetry": {
+                    "temp_c": temp_c,
+                    "humidity": f"{humidity}%",
+                    "wind_kmh": round(wind_speed_kmh, 1)
+                },
+                "ai_status": status
+            }
+    except Exception as e:
+        print(f"Ignition API Error: {e}")
+        pass
+        
+    return {"status": "error", "error": "Failed to calculate ignition risk"}
