@@ -235,7 +235,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
-        const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
+const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
         const backendUrl = "https://climate-shield-api.onrender.com";
         let currentWindLine = null;
         
@@ -263,11 +263,11 @@
             const lat = e.latlng.lat;
             const lon = e.latlng.lng;
 
-            // 1. Draw a glowing cyan scanning ring
+            // 1. Draw a glowing cyan scanning ring (Expanded to an impressive 80km radius)
             const scanRing = L.circle([lat, lon], {
                 color: '#00f3ff', weight: 2,
                 fillColor: '#00f3ff', fillOpacity: 0.1,
-                radius: 40000, // 40km scan radius
+                radius: 80000, // 80km expanded tactical scan radius
                 dashArray: '4, 6'
             }).addTo(map);
 
@@ -322,7 +322,6 @@
             const timestamp = new Date().toISOString().split('T')[1].substring(0,8);
             entry.innerHTML = `<span style="color:var(--neon-cyan)">[${timestamp}]</span> ${message}`;
             stream.insertBefore(entry, stream.firstChild);
-            // Allow more lines since it expands to the bottom now
             if(stream.children.length > 30) stream.removeChild(stream.lastChild);
         }
 
@@ -394,12 +393,10 @@
             const container = document.getElementById('threat-matrix');
             if (reset) container.innerHTML = "";
 
-            // Sort data array
             const sortedData = [...globalFireData].sort((a, b) => {
                 return currentSortMode === 'desc' ? b.density_score - a.density_score : a.density_score - b.density_score;
             });
 
-            // Get the next batch
             const currentRenderedCount = container.children.length;
             const toRender = sortedData.slice(currentRenderedCount, displayedFiresCount);
 
@@ -418,9 +415,7 @@
             });
         }
 
-        // Infinite Scroll Listener for the Right Sidebar
         document.getElementById('right-sidebar').addEventListener('scroll', function() {
-            // If scrolled to bottom, load next 50
             if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
                 if (displayedFiresCount < globalFireData.length) {
                     displayedFiresCount += 50;
@@ -457,7 +452,6 @@
                     const tableBody = document.getElementById('table-body-matrix');
                     tableBody.innerHTML = "";
 
-                    // Process Map Markers and Data Storage
                     globalFireData = data.fires.map((fire, index) => {
                         if (fire.density_score >= 8) highRiskCount++;
                         let markerColor = fire.density_score >= 8 ? '#dc2626' : (fire.density_score >= 3 ? '#d97706' : '#059669');
@@ -467,10 +461,14 @@
                             color: 'transparent', weight: 15, fillColor: markerColor, fillOpacity: 0.8
                         }).addTo(map);
 
-                        fire.markerRef = marker; // Save reference so right-panel can click it
-                        marker.on('click', () => inspectFire(fire));
+                        fire.markerRef = marker;
+                        
+                        // 🔒 FIX: Prevent fire marker clicks from leaking into map radar clicks
+                        marker.on('click', function(e) {
+                            L.DomEvent.stopPropagation(e); 
+                            inspectFire(fire);
+                        });
 
-                        // Top 10 Telemetry Table
                         if (index < 10) {
                             const row = document.createElement('tr');
                             row.style.borderBottom = "1px solid rgba(255,255,255,0.03)";
@@ -490,7 +488,6 @@
                         return fire;
                     });
 
-                    // Initial render of the side panel
                     renderThreatMatrix(true);
 
                     document.getElementById('kpi-critical').innerText = highRiskCount;
@@ -553,7 +550,7 @@
         }
 
         initializeCommandCenter();
-        // 🔥 PHASE 1 EXTENSION: GLOBAL PROACTIVE SCANNING MATRIX 🔥
+
         async function runGlobalProactiveScan() {
             logAIStream("Initializing Global Proactive Scanning Matrix...");
             
@@ -567,20 +564,18 @@
                     if (data.status === "success") {
                         let riskVal = parseFloat(data.ignition_probability);
                         
-                        // Only display on map if there is actual notable risk (>30%)
                         if (riskVal > 30) {
                             let color = riskVal >= 75 ? '#ff3b30' : '#ff9f0a';
                             
-                            // Create a permanent pulsing danger zone marker
+                            // 🌍 Custom regional zone size expanded for macro-monitoring
                             const zone = L.circle([hotspot.lat, hotspot.lon], {
                                 color: color,
                                 weight: 1,
                                 fillColor: color,
                                 fillOpacity: 0.15,
-                                radius: 150000 // 150km massive regional zone
+                                radius: 150000 
                             }).addTo(map);
 
-                            // Make it pulse visually using CSS opacity shifts
                             let growing = true;
                             setInterval(() => {
                                 let currentOpacity = zone.options.fillOpacity;
@@ -607,13 +602,11 @@
                     console.error(`Proactive scan failed for ${hotspot.name}`, err);
                 }
                 
-                // Throttling delay to respect your OpenWeather API limits!
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
             logAIStream("<span style='color:var(--neon-green)'>Global Proactive Scan Matrix fully deployed.</span>");
         }
 
-        // Trigger the matrix scan 5 seconds after boot up
         setTimeout(runGlobalProactiveScan, 5000);
     </script>
 </body>
