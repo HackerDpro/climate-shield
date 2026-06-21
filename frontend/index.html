@@ -245,6 +245,15 @@
 
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
 
+        // Global Hotspots for the Proactive AI Matrix
+        const AI_HOTSPOTS = [
+            { name: "Amazon Basin", lat: -3.46, lon: -62.21 },
+            { name: "California Scrublands", lat: 37.77, lon: -119.41 },
+            { name: "Australian Outback", lat: -25.27, lon: 133.77 },
+            { name: "Siberian Taiga", lat: 61.38, lon: 98.83 },
+            { name: "Mediterranean Coast", lat: 39.07, lon: 21.82 }
+        ];
+
         // 🔥 PHASE 1: TACTICAL PREDICTIVE SCANNER 🔥
         // Allows the user to click anywhere on the empty map to run a Pre-Crime AI scan
         map.on('click', async function(e) {
@@ -544,6 +553,68 @@
         }
 
         initializeCommandCenter();
+        // 🔥 PHASE 1 EXTENSION: GLOBAL PROACTIVE SCANNING MATRIX 🔥
+        async function runGlobalProactiveScan() {
+            logAIStream("Initializing Global Proactive Scanning Matrix...");
+            
+            for (const hotspot of AI_HOTSPOTS) {
+                try {
+                    logAIStream(`Matrix polling atmospheric telemetry for ${hotspot.name}...`);
+                    
+                    const res = await fetch(`${backendUrl}/api/ignition_risk?lat=${hotspot.lat}&lon=${hotspot.lon}`);
+                    const data = await res.json();
+                    
+                    if (data.status === "success") {
+                        let riskVal = parseFloat(data.ignition_probability);
+                        
+                        // Only display on map if there is actual notable risk (>30%)
+                        if (riskVal > 30) {
+                            let color = riskVal >= 75 ? '#ff3b30' : '#ff9f0a';
+                            
+                            // Create a permanent pulsing danger zone marker
+                            const zone = L.circle([hotspot.lat, hotspot.lon], {
+                                color: color,
+                                weight: 1,
+                                fillColor: color,
+                                fillOpacity: 0.15,
+                                radius: 150000 // 150km massive regional zone
+                            }).addTo(map);
+
+                            // Make it pulse visually using CSS opacity shifts
+                            let growing = true;
+                            setInterval(() => {
+                                let currentOpacity = zone.options.fillOpacity;
+                                if (growing) {
+                                    zone.setStyle({ fillOpacity: currentOpacity + 0.02 });
+                                    if (zone.options.fillOpacity >= 0.3) growing = false;
+                                } else {
+                                    zone.setStyle({ fillOpacity: currentOpacity - 0.02 });
+                                    if (zone.options.fillOpacity <= 0.1) growing = true;
+                                }
+                            }, 150);
+
+                            zone.bindPopup(`
+                                <div style="font-family: monospace; font-size: 0.8rem; line-height: 1.4;">
+                                    <b style="color:${color};">AUTOMATED AI ALERT</b><br>
+                                    <b>REGION:</b> ${hotspot.name}<br>
+                                    <b>IGNITION RISK:</b> <span style="font-size:1.1rem; color:${color}">${data.ignition_probability}</span><br>
+                                    <b>AI STATUS:</b> ${data.ai_status}
+                                </div>
+                            `);
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Proactive scan failed for ${hotspot.name}`, err);
+                }
+                
+                // Throttling delay to respect your OpenWeather API limits!
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+            logAIStream("<span style='color:var(--neon-green)'>Global Proactive Scan Matrix fully deployed.</span>");
+        }
+
+        // Trigger the matrix scan 5 seconds after boot up
+        setTimeout(runGlobalProactiveScan, 5000);
     </script>
 </body>
 </html>
