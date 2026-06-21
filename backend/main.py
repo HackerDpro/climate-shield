@@ -1,8 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import requests
-from collections import Counter
+import os
 import math
+from collections import Counter
+from dotenv import load_dotenv
+
+# Load environment variables (for local testing up to the cloud)
+load_dotenv()
 
 app = FastAPI()
 
@@ -14,9 +19,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-OWM_KEY = "4bd2d6b15fa80df855ee6a25038c7b92"
+# 🔒 SECURE: API Key is now hidden.
+OWM_KEY = os.getenv("OWM_KEY")
 
-# 🛰️ NEW: Live NASA Instrument Status
 @app.get("/api/satellites")
 def get_satellite_sources():
     url = "https://eonet.gsfc.nasa.gov/api/v3/sources"
@@ -24,7 +29,6 @@ def get_satellite_sources():
         res = requests.get(url, timeout=5)
         if res.status_code == 200:
             sources = res.json().get("sources", [])
-            # Return a list of active NASA/NOAA instruments
             return {"status": "success", "instruments": [s['id'] for s in sources[:6]]}
     except Exception:
         pass
@@ -32,6 +36,9 @@ def get_satellite_sources():
 
 @app.get("/api/wind")
 def get_wind_data(lat: float, lon: float):
+    if not OWM_KEY:
+        return {"speed": 0, "direction": 0, "error": "Missing API Key"}
+        
     url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OWM_KEY}"
     try:
         response = requests.get(url, timeout=5)
@@ -43,7 +50,6 @@ def get_wind_data(lat: float, lon: float):
         pass
     return {"speed": 0, "direction": 0}
 
-# 🌍 NEW: Real Atmospheric Contamination API
 @app.get("/api/air_quality")
 def get_air_quality(lat: float, lon: float):
     url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&current=pm2_5,carbon_monoxide"
@@ -60,11 +66,9 @@ def get_air_quality(lat: float, lon: float):
         pass
     return {"status": "offline", "pm2_5": "N/A", "co": "N/A"}
 
-# ⛰️ UPGRADED: Rock-solid Open-Meteo Topography API
 @app.get("/api/analyze_terrain")
 def analyze_terrain(lat: float, lon: float, wind_dir: float):
     offset = 0.01  
-    # Open-Meteo allows arrays in a single fast call
     lats = f"{lat},{lat+offset},{lat-offset},{lat},{lat}"
     lons = f"{lon},{lon},{lon},{lon+offset},{lon-offset}"
     url = f"https://api.open-meteo.com/v1/elevation?latitude={lats}&longitude={lons}"
