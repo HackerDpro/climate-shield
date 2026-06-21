@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLIMATE SHIELD // GLOBAL COMMAND</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #06080c;
+            --bg-panel: rgba(10, 15, 24, 0.85);
+            --neon-cyan: #00f3ff;
+            --neon-red: #ff3b30;
+            --neon-amber: #ff9f0a;
+            --neon-green: #10b981;
+            --text-main: #d1d5db;
+            --border-tech: 1px solid rgba(0, 243, 255, 0.15);
+        }
+
+        * { box-sizing: border-box; }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-primary); color: var(--text-main);
+        }
+
+        /* Fixed Navigation Header */
+        #top-nav {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; display: flex; gap: 10px;
+            background: rgba(4, 6, 10, 0.85); padding: 6px 12px; border-radius: 6px; border: var(--border-tech);
+            backdrop-filter: blur(10px);
+        }
+        
+        .nav-btn {
+            background: transparent; border: 1px solid transparent; color: #4b5563;
+            padding: 8px 16px; cursor: pointer; font-family: monospace; font-weight: bold;
+            transition: all 0.2s ease; border-radius: 4px; letter-spacing: 1px; font-size: 0.8rem;
+        }
+        
+        .nav-btn:hover { color: var(--text-main); }
+        .nav-btn.active { background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); border: var(--border-tech); box-shadow: 0 0 10px rgba(0,243,255,0.15); }
+
+        #app-core { position: relative; width: 100%; height: 100%; }
+
+        #command-wrapper {
+            display: grid; grid-template-columns: 340px 1fr 340px;
+            width: 100%; height: 100%; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Layout Views Switcher logic */
+        body.view-orbital #command-wrapper { grid-template-columns: 0px 1fr 0px; }
+        body.view-orbital .sidebar { opacity: 0; pointer-events: none; padding: 0; border: none; }
+        
+        body.view-telemetry #command-wrapper { display: none; }
+        body.view-telemetry #telemetry-dashboard { display: block; }
+
+        .sidebar {
+            background: var(--bg-panel); backdrop-filter: blur(15px);
+            border-right: var(--border-tech); display: flex; flex-direction: column;
+            padding: 20px; padding-top: 75px; z-index: 10; overflow-y: auto; overflow-x: hidden;
+            transition: all 0.3s ease; height: 100%;
+        }
+
+        #right-sidebar { border-right: none; border-left: var(--border-tech); }
+        #map-container { position: relative; width: 100%; height: 100%; z-index: 1; }
+        #map { width: 100%; height: 100%; background: #05070f; }
+
+        /* Fixed Telemetry Dashboard Structure */
+        #telemetry-dashboard {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #04060a; z-index: 50; padding: 80px 30px 30px 30px; overflow-y: auto;
+            background-image: radial-gradient(circle at center, rgba(0,243,255,0.03) 0%, transparent 80%);
+        }
+
+        .telemetry-grid {
+            display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; max-width: 1600px; margin: 0 auto;
+        }
+
+        h1 { font-size: 1.2rem; color: var(--neon-cyan); margin: 0 0 5px 0; letter-spacing: 2px; }
+        h2 { font-size: 0.85rem; color: var(--neon-amber); margin: 20px 0 10px 0; border-bottom: 1px solid rgba(255,159,10,0.15); padding-bottom: 5px; letter-spacing: 1px;}
+        
+        .status-pill {
+            font-size: 0.7rem; color: var(--neon-green); background: rgba(16, 185, 129, 0.08);
+            padding: 4px 8px; border-radius: 4px; display: inline-block; margin-bottom: 15px;
+            border: 1px solid rgba(16, 185, 129, 0.2); font-weight: bold;
+        }
+
+        .metric-box { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); padding: 15px; border-radius: 4px; }
+        .metric-val { font-size: 1.6rem; color: var(--neon-cyan); font-weight: bold; margin-top: 5px; font-family: monospace; }
+
+        /* Strict height locks for Chart Wrapper containment to stop loop lag crashes */
+        .chart-wrapper { position: relative; height: 260px; width: 100%; margin-top: 10px; }
+
+        .threat-list { display: flex; flex-direction: column; gap: 8px; }
+        .threat-card { padding: 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; }
+        .threat-card:hover { transform: translateX(-4px); filter: brightness(1.2); }
+        .threat-title { font-weight: bold; font-size: 0.8rem; margin-bottom: 4px; }
+
+        /* NASA Tech Widgets */
+        .satellite-row { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .cyber-log { background: rgba(0,0,0,0.4); border: 1px solid rgba(0,243,255,0.05); padding: 10px; font-size: 0.7rem; height: 140px; overflow-y: hidden; display: flex; flex-direction: column-reverse; gap: 4px; color: #8892b0; }
+
+        .tele-card-full { grid-column: span 12; }
+        .tele-card-6 { grid-column: span 6; }
+        .tele-card-4 { grid-column: span 4; }
+
+        @media (max-width: 1024px) {
+            .tele-card-6, .tele-card-4 { grid-column: span 12; }
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: rgba(8, 12, 20, 0.9) !important; color: var(--text-main) !important;
+            border: var(--border-tech); border-radius: 4px; backdrop-filter: blur(8px);
+        }
+        .leaflet-popup-tip { background: rgba(8, 12, 20, 0.9) !important; border: var(--border-tech); }
+    </style>
+</head>
+<body class="view-tactical">
+
+    <div id="top-nav">
+        <button class="nav-btn active" onclick="switchMode('tactical')" id="btn-tactical">TACTICAL</button>
+        <button class="nav-btn" onclick="switchMode('orbital')" id="btn-orbital">ORBITAL</button>
+        <button class="nav-btn" onclick="switchMode('telemetry')" id="btn-telemetry">TELEMETRY</button>
+    </div>
+
+    <div id="app-core">
+        
+        <div id="command-wrapper">
+            <div class="sidebar" id="left-sidebar">
+                <h1>CLIMATE SHIELD</h1>
+                <div class="status-pill" id="uplink-status">● ORBITAL LINK: ACTIVE</div>
+                
+                <h2>Telemetry Core</h2>
+                <div class="metric-box">
+                    <div style="font-size: 0.7rem; opacity: 0.6; letter-spacing: 1px;">ACTIVE DETECTIONS</div>
+                    <div class="metric-val" id="total-fires">0000</div>
+                </div>
+
+                <h2>🛰️ Satellite Array Status</h2>
+                <div class="metric-box" style="padding: 10px 15px;">
+                    <div class="satellite-row"><span>EOS-AM1 (TERRA)</span><span style="color:var(--neon-green)">ONLINE</span></div>
+                    <div class="satellite-row"><span>EOS-PM1 (AQUA)</span><span style="color:var(--neon-green)">ONLINE</span></div>
+                    <div class="satellite-row"><span>SUOMI NPP</span><span style="color:var(--neon-amber)">DEGRADED</span></div>
+                    <div class="satellite-row"><span>JPSS-1 (NOAA-20)</span><span style="color:var(--neon-green)">ONLINE</span></div>
+                </div>
+
+                <h2>🤖 AI Real-Time Stream</h2>
+                <div class="cyber-log" id="cyber-stream">
+                    <div>[SYS] Listening for planetary hotspot signature flags...</div>
+                </div>
+            </div>
+
+            <div id="map-container"><div id="map"></div></div>
+
+            <div class="sidebar" id="right-sidebar">
+                <h2>🚨 EPICENTER THREATS</h2>
+                <div class="threat-list" id="threat-matrix"></div>
+            </div>
+        </div>
+
+        <div id="telemetry-dashboard">
+            <div style="border-bottom: 1px solid rgba(0,243,255,0.1); padding-bottom: 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                    <h1 style="font-size: 1.8rem; margin: 0; color: #fff;">PLANETARY ECOSYSTEM TELEMETRY</h1>
+                    <p style="color: #6b7280; margin: 5px 0 0 0; font-size: 0.85rem;">Predictive AI Analytics Engine Core Matrix</p>
+                </div>
+                <div style="text-align: right; font-family: monospace; font-size: 0.8rem; color: var(--neon-cyan);">
+                    UPLINK NODE: CLIMATE_SHIELD_V2.0
+                </div>
+            </div>
+            
+            <div class="telemetry-grid">
+                <div class="metric-box tele-card-4">
+                    <div style="font-size: 0.75rem; color: #a1a1aa;">TOTAL ATMOSPHERIC CARBON FLUX</div>
+                    <div class="metric-val" id="kpi-carbon">0.00 MT</div>
+                </div>
+                <div class="metric-box tele-card-4">
+                    <div style="font-size: 0.75rem; color: #a1a1aa;">CRITICAL EMERGENCY OUTBREAKS</div>
+                    <div class="metric-val" id="kpi-critical" style="color: var(--neon-red);">0</div>
+                </div>
+                <div class="metric-box tele-card-4">
+                    <div style="font-size: 0.75rem; color: #a1a1aa;">AI PREDICTIVE RISK AVERAGE</div>
+                    <div class="metric-val" id="kpi-risk" style="color: var(--neon-amber);">0.0%</div>
+                </div>
+
+                <div class="metric-box tele-card-6">
+                    <h2>Planetary Threat Threshold Spread</h2>
+                    <div class="chart-wrapper">
+                        <canvas id="threatChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="metric-box tele-card-6">
+                    <h2>Atmospheric CO2 Trajectory (Est. Megatons)</h2>
+                    <div class="chart-wrapper">
+                        <canvas id="carbonChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="metric-box tele-card-full">
+                    <h2>📋 Deep Analytics Data Grid Summary (Top 10 Active Outbreaks)</h2>
+                    <div style="overflow-x: auto; margin-top: 10px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left;" id="data-matrix-table">
+                            <thead>
+                                <tr style="border-bottom: 2px solid rgba(0,243,255,0.2); color: var(--neon-cyan);">
+                                    <th style="padding: 10px 5px;">LOCATION / INCIDENT</th>
+                                    <th>LATITUDE</th>
+                                    <th>LONGITUDE</th>
+                                    <th>DENSITY RANK</th>
+                                    <th>STATUS FLAG</th>
+                                </tr>
+                            </thead>
+                            <tbody style="color: #a1a1aa;" id="table-body-matrix">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
+        const backendUrl = "https://solid-zebra-j6vw5vpr756cx9v-8000.app.github.dev";
+        let currentWindLine = null;
+        let globalFireData = []; 
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
+
+        function switchMode(mode) {
+            document.body.className = `view-${mode}`;
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+            if (mode !== 'telemetry') setTimeout(() => map.invalidateSize(), 400);
+            if (mode === 'telemetry') renderCharts(); 
+        }
+
+        // Real Data Logger
+        function logAIStream(message) {
+            const stream = document.getElementById('cyber-stream');
+            const entry = document.createElement('div');
+            const timestamp = new Date().toISOString().split('T')[1].substring(0,8);
+            entry.innerHTML = `<span style="color:var(--neon-cyan)">[${timestamp}]</span> ${message}`;
+            stream.insertBefore(entry, stream.firstChild);
+            if(stream.children.length > 8) stream.removeChild(stream.lastChild);
+        }
+
+        async function inspectFire(fire, markerRef) {
+            const startTime = performance.now();
+            map.setView([fire.lat, fire.lon], 9);
+            markerRef.bindPopup(`<b>${fire.title}</b><br><span style='color:var(--neon-cyan);'>Querying multiple orbital APIs...</span>`, { offset: [0, -10] }).openPopup();
+
+            if (currentWindLine) map.removeLayer(currentWindLine);
+            logAIStream(`Initiated multipoint sensor sweep for: ${fire.lat.toFixed(2)}, ${fire.lon.toFixed(2)}`);
+
+            try {
+                // Fetch Wind, Terrain, and Air Quality simultaneously
+                const [resWind, resTerrain, resAQ] = await Promise.all([
+                    fetch(`${backendUrl}/api/wind?lat=${fire.lat}&lon=${fire.lon}`),
+                    fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=0`), // Temp 0 dir for parallel fetch
+                    fetch(`${backendUrl}/api/air_quality?lat=${fire.lat}&lon=${fire.lon}`)
+                ]);
+
+                const wind = await resWind.json();
+                // Re-fetch terrain with correct wind direction for real slope math
+                const resTerrainReal = await fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=${wind.direction}`);
+                const terrain = await resTerrainReal.json();
+                const aq = await resAQ.json();
+
+                const endTime = performance.now();
+                logAIStream(`Data fused in ${(endTime - startTime).toFixed(0)}ms. Terrain Alt: ${terrain.elevation_meters}m.`);
+
+                let hazardIndex = Math.round(Math.min(wind.speed * 4.5, 50) + Math.min(fire.density_score * 4.0, 50));
+                hazardIndex = Math.min(Math.round(hazardIndex * terrain.spread_multiplier), 100);
+
+                let threatColor = hazardIndex >= 65 ? "#ff3b30" : (hazardIndex >= 35 ? "#ff9f0a" : "#10b981");
+                const speedKmh = (wind.speed * 3.6).toFixed(1);
+                const projectedSpread = (wind.speed * 0.22 * 24 * terrain.spread_multiplier).toFixed(2);
+
+                let aqColor = aq.pm2_5 > 50 ? "#ff3b30" : (aq.pm2_5 > 15 ? "#ff9f0a" : "#10b981");
+
+                markerRef.setPopupContent(`
+                    <div style="font-family: monospace; min-width: 290px; font-size: 0.8rem; line-height: 1.5;">
+                        <b style="color: ${threatColor}; font-size: 0.95rem;">${fire.title}</b><br><br>
+                        💨 <span style="color:#a1a1aa;">WIND VECTOR:</span> ${speedKmh} km/h @ ${wind.direction}°<br>
+                        ⛰️ <span style="color:#a1a1aa;">ALTITUDE:</span> ${terrain.elevation_meters} m<br>
+                        🤖 <span style="color:#a1a1aa;">TERRAIN AI:</span> <b style="color:${terrain.spread_multiplier > 1.2 ? '#ff3b30' : '#00f3ff'}">${terrain.terrain_status}</b><br>
+                        ☠️ <span style="color:#a1a1aa;">ATMOSPHERE (PM2.5):</span> <b style="color:${aqColor};">${aq.pm2_5} µg/m³</b><br>
+                        📈 <span style="color:#a1a1aa;">24H PROJECTION:</span> ~${projectedSpread} km linear spread<br>
+                        📊 <span style="color:#a1a1aa;">HAZARD SCORE:</span> <b style="color:${threatColor};">${hazardIndex} / 100</b>
+                    </div>
+                `);
+
+                const latOffset = (Math.cos(wind.direction * Math.PI / 180) * (wind.speed / 5));
+                const lonOffset = (Math.sin(wind.direction * Math.PI / 180) * (wind.speed / 5));
+
+                currentWindLine = L.polyline([[fire.lat, fire.lon], [fire.lat + latOffset, fire.lon + lonOffset]], {
+                    color: threatColor, weight: 4, opacity: 0.9, dashArray: '5, 5'
+                }).addTo(map);
+
+            } catch (err) { 
+                console.error("Relay error:", err); 
+                logAIStream(`<span style="color:red">ERROR: Packet loss on coordinates ${fire.lat.toFixed(2)}</span>`);
+            }
+        }
+
+        async function initializeCommandCenter() {
+            try {
+                logAIStream("Booting Main Terminal. Establishing NASA EONET uplink...");
+                
+                // Fetch real satellite data and fire data simultaneously
+                const [fireRes, satRes] = await Promise.all([
+                    fetch(`${backendUrl}/api/fires`),
+                    fetch(`${backendUrl}/api/satellites`)
+                ]);
+                
+                const data = await fireRes.json();
+                const satData = await satRes.json();
+
+                // Build real satellite UI
+                const satContainer = document.querySelector('.satellite-row').parentElement;
+                satContainer.innerHTML = ""; // Clear placeholders
+                if(satData.instruments) {
+                    satData.instruments.forEach(inst => {
+                        satContainer.innerHTML += `<div class="satellite-row"><span>${inst.toUpperCase()}</span><span style="color:var(--neon-green)">SYNCED</span></div>`;
+                    });
+                }
+
+                if (data.status === "success") {
+                    globalFireData = data.fires; 
+                    document.getElementById('total-fires').innerText = data.total_global;
+                    document.getElementById('kpi-carbon').innerText = (data.total_global * 0.14).toFixed(2) + " MT";
+                    
+                    let highRiskCount = 0;
+                    const tableBody = document.getElementById('table-body-matrix');
+                    const threatMatrix = document.getElementById('threat-matrix');
+                    tableBody.innerHTML = ""; threatMatrix.innerHTML = "";
+
+                    data.fires.forEach((fire, index) => {
+                        if (fire.density_score >= 8) highRiskCount++;
+                        let markerColor = fire.density_score >= 8 ? '#dc2626' : (fire.density_score >= 3 ? '#d97706' : '#059669');
+                        
+                        const marker = L.circleMarker([fire.lat, fire.lon], {
+                            radius: fire.density_score >= 8 ? 7 : (fire.density_score >= 3 ? 5 : 4),
+                            color: 'transparent', weight: 15, fillColor: markerColor, fillOpacity: 0.8
+                        }).addTo(map);
+
+                        marker.on('click', () => inspectFire(fire, marker));
+
+                        if (index < 6) {
+                            const card = document.createElement('div');
+                            card.className = 'threat-card';
+                            card.style.background = `rgba(${fire.density_score >= 8 ? '255,59,48' : '255,159,10'}, 0.05)`;
+                            card.style.border = `1px solid rgba(${fire.density_score >= 8 ? '255,59,48' : '255,159,10'}, 0.25)`;
+                            card.innerHTML = `<div class="threat-title" style="color: ${markerColor}">⚠️ CLUSTER: ${fire.title}</div><div style="font-size: 0.7rem; color: #a1a1aa;">LAT: ${fire.lat.toFixed(2)} | LON: ${fire.lon.toFixed(2)}</div>`;
+                            card.onclick = () => {
+                                if(document.body.className !== 'view-tactical') switchMode('tactical');
+                                inspectFire(fire, marker);
+                            }
+                            threatMatrix.appendChild(card);
+                        }
+
+                        if (index < 10) {
+                            const row = document.createElement('tr');
+                            row.style.borderBottom = "1px solid rgba(255,255,255,0.03)";
+                            let flagColor = fire.density_score >= 8 ? "var(--neon-red)" : (fire.density_score >= 3 ? "var(--neon-amber)" : "var(--neon-green)");
+                            let flagText = fire.density_score >= 8 ? "CRITICAL OUTBREAK" : (fire.density_score >= 3 ? "ELEVATED THREAT" : "MONITORED");
+                            
+                            row.innerHTML = `
+                                <td style="padding: 10px 5px; color:#fff; font-weight:bold;">${fire.title}</td>
+                                <td>${fire.lat.toFixed(4)}</td>
+                                <td>${fire.lon.toFixed(4)}</td>
+                                <td style="color:var(--neon-cyan); font-weight:bold;">Tier ${fire.density_score}</td>
+                                <td style="color:${flagColor}; font-weight:bold;">${flagText}</td>
+                            `;
+                            tableBody.appendChild(row);
+                        }
+                    });
+
+                    document.getElementById('kpi-critical').innerText = highRiskCount;
+                    document.getElementById('kpi-risk').innerText = ((highRiskCount / data.total_global) * 100).toFixed(1) + "%";
+                    logAIStream(`Uplink processed ${data.total_global} total thermal events successfully.`);
+                }
+            } catch (error) { 
+                console.error("System crash:", error); 
+                logAIStream(`<span style="color:red">CRITICAL SYSTEM FAILURE: Cannot reach backend.</span>`);
+            }
+        }
+
+        let threatChartInstance = null;
+        let carbonChartInstance = null;
+
+        function renderCharts() {
+            if (!globalFireData.length) return;
+            logAIStream(`Generating planetary Threat Matrix rendering...`);
+
+            let lowRisk = 0, medRisk = 0, highRisk = 0;
+            globalFireData.forEach(f => {
+                if (f.density_score >= 8) highRisk++;
+                else if (f.density_score >= 3) medRisk++;
+                else lowRisk++;
+            });
+
+            const ctxThreat = document.getElementById('threatChart').getContext('2d');
+            if (threatChartInstance) threatChartInstance.destroy();
+            threatChartInstance = new Chart(ctxThreat, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Critical Outbreaks', 'Elevated Clusters', 'Routine/Isolated'],
+                    datasets: [{
+                        data: [highRisk, medRisk, lowRisk],
+                        backgroundColor: ['#ff3b30', '#ff9f0a', '#10b981'],
+                        borderWidth: 0, hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#d1d5db', font: { family: 'monospace', size: 10 } } } } }
+            });
+
+            const ctxCarbon = document.getElementById('carbonChart').getContext('2d');
+            if (carbonChartInstance) carbonChartInstance.destroy();
+            
+            const baseCarbon = (globalFireData.length * 0.14);
+            const pastData = [baseCarbon*0.82, baseCarbon*0.88, baseCarbon*0.91, baseCarbon*0.85, baseCarbon*0.96, baseCarbon*0.98, baseCarbon];
+
+            carbonChartInstance = new Chart(ctxCarbon, {
+                type: 'line',
+                data: {
+                    labels: ['T-6D', 'T-5D', 'T-4D', 'T-3D', 'T-2D', 'T-1D', 'LAUNCH'],
+                    datasets: [{
+                        label: 'Carbon Injection',
+                        data: pastData,
+                        borderColor: '#00f3ff', backgroundColor: 'rgba(0, 243, 255, 0.05)',
+                        borderWidth: 2, fill: true, tension: 0.3, pointRadius: 2
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#6b7280', font: { family: 'monospace' } } }, y: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#6b7280', font: { family: 'monospace' } } } }, plugins: { legend: { labels: { color: '#d1d5db', font: { family: 'monospace', size: 10 } } } } }
+            });
+        }
+
+        initializeCommandCenter();
+    </script>
+</body>
+</html>
+<!-- I am going to work later for the uploading on real servers so we can really deploy it (and ship it in Stardance), wish me luck -->
