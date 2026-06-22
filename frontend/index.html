@@ -403,6 +403,12 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
                         ☠️ <span style="color:#a1a1aa;">ATMOSPHERE (PM2.5):</span> <b style="color:${aqColor};">${aq.pm2_5} µg/m³</b><br>
                         📈 <span style="color:#a1a1aa;">24H PROJECTION:</span> ~${projectedSpread} km linear spread<br>
                         📊 <span style="color:#a1a1aa;">HAZARD SCORE:</span> <b style="color:${threatColor};">${hazardIndex} / 100</b>
+                        
+                        <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                            <button onclick="window.deployAirTanker(${fire.lat}, ${fire.lon})" style="width: 100%; padding: 8px; background: rgba(0, 243, 255, 0.1); border: 1px solid #00f3ff; color: #00f3ff; font-family: monospace; font-weight: bold; cursor: pointer; transition: 0.3s;" onmouseover="this.style.background='#00f3ff'; this.style.color='#000';" onmouseout="this.style.background='rgba(0, 243, 255, 0.1)'; this.style.color='#00f3ff';">
+                                🚁 DEPLOY AIR TANKER
+                            </button>
+                        </div>
                     </div>
                 `);
 
@@ -423,58 +429,79 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
         }
 
         // ==========================================
-        // PHASE 3: TOXIC PLUME DISPERSION MATH
+        // PHASE 3: ASSET ALLOCATION (AIR TANKER)
         // ==========================================
-        function drawToxicPlume(lat, lon, windSpeedKm, windDirDeg, pm25) {
-            // Clear any existing plume from the map
-            if (currentPlume) map.removeLayer(currentPlume);
+        window.deployAirTanker = function(targetLat, targetLon) {
+            // 1. Locate the specific fire in our global array
+            const fire = globalFireData.find(f => f.lat === targetLat && f.lon === targetLon);
+            if (!fire) return;
 
-            // 1. Define the parameters
-            const distanceKm = Math.max(windSpeedKm * 6, 15); // 6-hour projection, min 15km
-            const R = 6371; // Earth's Radius in km
-            
-            // 2. Convert to radians for JavaScript Math
-            const lat1 = lat * Math.PI / 180;
-            const lon1 = lon * Math.PI / 180;
-            const brngCenter = windDirDeg * Math.PI / 180;
-            const spread = 20 * Math.PI / 180; // 20-degree spread on each side of the wind vector
+            logAIStream(`CRITICAL COMMAND: Air Tanker dispatched to Sector [${targetLat.toFixed(2)}, ${targetLon.toFixed(2)}]`);
 
-            // 3. Calculate Left Edge Coordinate of the cone
-            const brngLeft = brngCenter - spread;
-            const latLeft = Math.asin(Math.sin(lat1)*Math.cos(distanceKm/R) + Math.cos(lat1)*Math.sin(distanceKm/R)*Math.cos(brngLeft));
-            const lonLeft = lon1 + Math.atan2(Math.sin(brngLeft)*Math.sin(distanceKm/R)*Math.cos(lat1), Math.cos(distanceKm/R)-Math.sin(lat1)*Math.sin(latLeft));
+            // 2. Calculate a "Base" starting position (roughly 200km away)
+            const baseLat = targetLat - 2.5;
+            const baseLon = targetLon - 2.5;
 
-            // 4. Calculate Right Edge Coordinate of the cone
-            const brngRight = brngCenter + spread;
-            const latRight = Math.asin(Math.sin(lat1)*Math.cos(distanceKm/R) + Math.cos(lat1)*Math.sin(distanceKm/R)*Math.cos(brngRight));
-            const lonRight = lon1 + Math.atan2(Math.sin(brngRight)*Math.sin(distanceKm/R)*Math.cos(lat1), Math.cos(distanceKm/R)-Math.sin(lat1)*Math.sin(latRight));
+            // 3. Create the airplane marker
+            const planeIcon = L.divIcon({
+                html: '<div style="font-size: 22px; filter: drop-shadow(0 0 8px #00f3ff); transform: rotate(45deg);">✈️</div>',
+                className: 'custom-plane-icon',
+                iconSize: [30, 30]
+            });
+            const plane = L.marker([baseLat, baseLon], { icon: planeIcon }).addTo(map);
 
-            // 5. Convert back to degrees for the Leaflet Map
-            const originPoint = [lat, lon];
-            const leftPoint = [latLeft * 180 / Math.PI, lonLeft * 180 / Math.PI];
-            const rightPoint = [latRight * 180 / Math.PI, lonRight * 180 / Math.PI];
+            // 4. Animate the flight path
+            let step = 0;
+            const totalSteps = 40; // Total animation frames
+            const latStep = (targetLat - baseLat) / totalSteps;
+            const lonStep = (targetLon - baseLon) / totalSteps;
 
-            // 6. Determine danger color based on PM2.5 Toxicity
-            let plumeColor = pm25 > 50 ? "#ff3b30" : (pm25 > 15 ? "#ff9f0a" : "#10b981");
+            const flightInterval = setInterval(() => {
+                step++;
+                plane.setLatLng([baseLat + (latStep * step), baseLon + (lonStep * step)]);
+                
+                if (step >= totalSteps) {
+                    // 5. Plane arrived! Clear plane and drop water
+                    clearInterval(flightInterval);
+                    map.removeLayer(plane);
+                    
+                    logAIStream(`Payload released over target. Suppressing thermal signature...`);
 
-            // 7. Draw the Polygon on the tactical map
-            currentPlume = L.polygon([originPoint, leftPoint, rightPoint], {
-                color: plumeColor, weight: 1, fillColor: plumeColor, fillOpacity: 0.15, dashArray: '4, 4'
-            }).addTo(map);
+                    // 6. Water Drop Ripple Effect
+                    const waterRipple = L.circle([targetLat, targetLon], {
+                        color: '#00f3ff', weight: 2, fillColor: '#00f3ff', fillOpacity: 0.7, radius: 1000
+                    }).addTo(map);
 
-            // 8. Add the Hackathon "Wow Factor" Metric
-            // Faux demographic calculation based on spread area and toxicity
-            const estPopulation = Math.round((distanceKm * 2.5) * (Math.max(pm25, 1) / 10) * 1200); 
-            
-            currentPlume.bindPopup(`
-                <div style="font-family: monospace; font-size: 0.8rem; line-height: 1.5; min-width: 200px;">
-                    <b style="color:${plumeColor}">☣️ TOXIC PLUME (6H PROJECTION)</b><br><br>
-                    ☠️ <b>PM2.5 Level:</b> ${pm25} µg/m³<br>
-                    💨 <b>Wind Velocity:</b> ${windSpeedKm.toFixed(1)} km/h<br>
-                    ⚠️ <b>Est. Population at Risk:</b> ~${estPopulation.toLocaleString()}
-                </div>
-            `);
-        }
+                    let rippleStep = 0;
+                    const rippleInterval = setInterval(() => {
+                        rippleStep++;
+                        waterRipple.setRadius(1000 + (rippleStep * 2500));
+                        waterRipple.setStyle({ fillOpacity: 0.7 - (rippleStep * 0.07) });
+                        
+                        if (rippleStep >= 10) {
+                            clearInterval(rippleInterval);
+                            map.removeLayer(waterRipple);
+                            
+                            // 7. Update Map Data (Downgrade the fire's threat level!)
+                            fire.density_score = Math.max(1, fire.density_score - 4); // Reduce threat
+                            
+                            let newColor = fire.density_score >= 8 ? '#ff3b30' : (fire.density_score >= 3 ? '#ff9f0a' : '#10b981');
+                            fire.markerRef.setStyle({ fillColor: newColor, radius: fire.density_score >= 8 ? 7 : (fire.density_score >= 3 ? 5 : 4) });
+                            
+                            // Clear tactical UI since the threat is mitigated
+                            if (currentWindLine) map.removeLayer(currentWindLine);
+                            if (currentPlume) map.removeLayer(currentPlume);
+                            fire.markerRef.closePopup();
+                            
+                            logAIStream(`<span style="color:var(--neon-green)">MISSION SUCCESS: Sector threat downgraded to Tier ${fire.density_score}.</span>`);
+                            
+                            // Refresh UI Sidebar
+                            renderThreatMatrix(true);
+                        }
+                    }, 60);
+                }
+            }, 30); // 30ms per frame for smooth 60fps flight
+        };
 
         function handleSortChange() {
             currentSortMode = document.getElementById('threat-sort').value;
