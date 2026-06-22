@@ -327,17 +327,19 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
             const globeEl = document.getElementById('orbital-globe-ui');
 
             if (mode === 'orbital') {
-                // Hide 2D map, display 3D WebGL Globe
                 if (mapEl) mapEl.style.display = 'none';
                 if (globeEl) globeEl.style.display = 'block';
                 
-                // Initialize the globe if it hasn't been built yet
                 if (!myGlobe) {
                     init3DOrbitalCenter();
                 } else {
-                    // Update data dynamically on view switch
                     updateGlobeData();
                 }
+                
+                // 🔒 FIX: Force WebGL to recalculate its center point immediately after displaying
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('resize'));
+                }, 50);
             } else {
                 // Show 2D map, hide 3D WebGL Globe
                 if (mapEl) mapEl.style.display = 'block';
