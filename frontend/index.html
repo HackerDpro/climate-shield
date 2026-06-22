@@ -243,6 +243,7 @@
 const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
         const backendUrl = "https://climate-shield-api.onrender.com";
         let currentWindLine = null;
+        let currentPlume = null; // 🔒 NEW: Tracks the active toxic smoke cone
         
         let globalFireData = []; 
         let displayedFiresCount = 50; // Infinite Scroll Limit
@@ -405,6 +406,7 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
                     </div>
                 `);
 
+// (Existing Wind Line Code)
                 const latOffset = (Math.cos(wind.direction * Math.PI / 180) * (wind.speed / 5));
                 const lonOffset = (Math.sin(wind.direction * Math.PI / 180) * (wind.speed / 5));
 
@@ -412,9 +414,66 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
                     color: threatColor, weight: 4, opacity: 0.9, dashArray: '5, 5'
                 }).addTo(map);
 
+                // 🔥 TRIGGER PHASE 3 TOXIC PLUME (On its own line!)
+                drawToxicPlume(fire.lat, fire.lon, wind.speed * 3.6, wind.direction, aq.pm2_5);
+
             } catch (err) { 
                 logAIStream(`<span style="color:red">ERROR: Packet loss on coordinates ${fire.lat.toFixed(2)}</span>`);
             }
+        }
+
+        // ==========================================
+        // PHASE 3: TOXIC PLUME DISPERSION MATH
+        // ==========================================
+        function drawToxicPlume(lat, lon, windSpeedKm, windDirDeg, pm25) {
+            // Clear any existing plume from the map
+            if (currentPlume) map.removeLayer(currentPlume);
+
+            // 1. Define the parameters
+            const distanceKm = Math.max(windSpeedKm * 6, 15); // 6-hour projection, min 15km
+            const R = 6371; // Earth's Radius in km
+            
+            // 2. Convert to radians for JavaScript Math
+            const lat1 = lat * Math.PI / 180;
+            const lon1 = lon * Math.PI / 180;
+            const brngCenter = windDirDeg * Math.PI / 180;
+            const spread = 20 * Math.PI / 180; // 20-degree spread on each side of the wind vector
+
+            // 3. Calculate Left Edge Coordinate of the cone
+            const brngLeft = brngCenter - spread;
+            const latLeft = Math.asin(Math.sin(lat1)*Math.cos(distanceKm/R) + Math.cos(lat1)*Math.sin(distanceKm/R)*Math.cos(brngLeft));
+            const lonLeft = lon1 + Math.atan2(Math.sin(brngLeft)*Math.sin(distanceKm/R)*Math.cos(lat1), Math.cos(distanceKm/R)-Math.sin(lat1)*Math.sin(latLeft));
+
+            // 4. Calculate Right Edge Coordinate of the cone
+            const brngRight = brngCenter + spread;
+            const latRight = Math.asin(Math.sin(lat1)*Math.cos(distanceKm/R) + Math.cos(lat1)*Math.sin(distanceKm/R)*Math.cos(brngRight));
+            const lonRight = lon1 + Math.atan2(Math.sin(brngRight)*Math.sin(distanceKm/R)*Math.cos(lat1), Math.cos(distanceKm/R)-Math.sin(lat1)*Math.sin(latRight));
+
+            // 5. Convert back to degrees for the Leaflet Map
+            const originPoint = [lat, lon];
+            const leftPoint = [latLeft * 180 / Math.PI, lonLeft * 180 / Math.PI];
+            const rightPoint = [latRight * 180 / Math.PI, lonRight * 180 / Math.PI];
+
+            // 6. Determine danger color based on PM2.5 Toxicity
+            let plumeColor = pm25 > 50 ? "#ff3b30" : (pm25 > 15 ? "#ff9f0a" : "#10b981");
+
+            // 7. Draw the Polygon on the tactical map
+            currentPlume = L.polygon([originPoint, leftPoint, rightPoint], {
+                color: plumeColor, weight: 1, fillColor: plumeColor, fillOpacity: 0.15, dashArray: '4, 4'
+            }).addTo(map);
+
+            // 8. Add the Hackathon "Wow Factor" Metric
+            // Faux demographic calculation based on spread area and toxicity
+            const estPopulation = Math.round((distanceKm * 2.5) * (Math.max(pm25, 1) / 10) * 1200); 
+            
+            currentPlume.bindPopup(`
+                <div style="font-family: monospace; font-size: 0.8rem; line-height: 1.5; min-width: 200px;">
+                    <b style="color:${plumeColor}">☣️ TOXIC PLUME (6H PROJECTION)</b><br><br>
+                    ☠️ <b>PM2.5 Level:</b> ${pm25} µg/m³<br>
+                    💨 <b>Wind Velocity:</b> ${windSpeedKm.toFixed(1)} km/h<br>
+                    ⚠️ <b>Est. Population at Risk:</b> ~${estPopulation.toLocaleString()}
+                </div>
+            `);
         }
 
         function handleSortChange() {
