@@ -641,32 +641,44 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
 
         setTimeout(runGlobalProactiveScan, 5000);
 
-// 🔥 PHASE 2: LIGHTWEIGHT ORBITAL COMMAND CENTER 🔥
+// 🔥 PHASE 2: ADVANCED ORBITAL COMMAND CENTER (HIGH PERFORMANCE) 🔥
         function init3DOrbitalCenter() {
-            logAIStream("Initializing High-Performance WebGL Engine...");
+            logAIStream("Initializing 3D Orbital Matrix with Real-Time Solar Shading...");
             const container = document.getElementById('orbital-globe-ui');
             if (!container) return;
 
-            // 1. Build a lightweight, low-poly 3D Earth
+            // 1. Initialize the Globe Engine
             myGlobe = Globe()(container)
-                .globeImageUrl('//unpkg.com/three-globe/example/img/earth-dark.jpg') // Fast, lightweight texture
-                .backgroundColor('rgba(0,0,0,0)') // Transparent background, no heavy images
+                // High-resolution satellite imagery optimized for fast WebGL rendering
+                .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg') 
+                .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+                .backgroundColor('#020205') 
                 .showAtmosphere(true)
                 .atmosphereColor('#00f3ff') 
-                .atmosphereAltitude(0.15)
+                .atmosphereAltitude(0.18) 
                 
-                // 2. Map Configuration for Fire Points (Optimized)
+                // 2. Base Configuration for Fire Pillars
                 .pointLat('lat')
                 .pointLng('lon')
                 .pointColor(d => d.density_score >= 8 ? '#ff3b30' : (d.density_score >= 3 ? '#ff9f0a' : '#10b981'))
                 .pointAltitude(d => Math.min(d.density_score * 0.04, 0.3)) 
-                .pointRadius(0.2) // Slightly smaller for performance
+                .pointRadius(0.22) 
+                .pointsTransitionDuration(1000)
                 
-                // PERFORMANCE HACK: Use fast HTML tooltips instead of heavy 3D text labels!
+                // 3. Special Effects Layer for Top Critical Outbreaks (Pulsing Heat Wave Rings)
+                .ringLat('lat')
+                .ringLng('lon')
+                .ringColor(() => '#ff3b30')
+                .ringMaxRadius(d => Math.min(d.density_score * 0.8, 4.0)) // Expansion size based on threat
+                .ringPropagationSpeed(1.5) // Speed of expanding wave
+                .ringRepeatPeriod(1200) // Pulse frequency
+                
+                // 4. Interactive HUD Tooltips
                 .pointLabel(d => `
-                    <div style="background: rgba(0,0,0,0.8); padding: 5px; border: 1px solid #00f3ff; border-radius: 3px; font-family: monospace;">
-                        <b>Sector:</b> ${d.title}<br>
-                        <b>Threat Tier:</b> ${d.density_score}
+                    <div style="background: rgba(2,2,5,0.9); padding: 8px; border: 1px solid #00f3ff; border-radius: 4px; font-family: monospace; font-size:0.75rem; color:#fff; box-shadow: 0 0 10px rgba(0,243,255,0.3);">
+                        <b style="color:#ff3b30;">🚨 WARNING: CLUSTER OUTBREAK</b><br>
+                        <span style="color:#a1a1aa;">Sector:</span> ${d.title}<br>
+                        <span style="color:#a1a1aa;">Threat Level:</span> <b style="color:#ff9f0a;">Tier ${d.density_score}</b>
                     </div>
                 `)
                 .onPointClick(fire => {
@@ -675,20 +687,42 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
                     inspectFire(fire);
                 });
 
-            // Keep auto-rotate off so the user maintains full control without lag
-            myGlobe.controls().autoRotate = false;
+            // 5. Inject Custom Three.js Sun Lighting (Dynamic Shadow & Terminator Line)
+            const scene = myGlobe.scene();
             
-            // Adjust the starting camera distance
+            // Remove standard ambient lighting to allow dark shadows
+            const existingLights = scene.children.filter(c => c.isLight);
+            existingLights.forEach(light => scene.remove(light));
+
+            // Add subtle ambient light so the night side isn't entirely pitch black
+            const spaceAmbient = new THREE.AmbientLight(0x0a0a15);
+            scene.add(spaceAmbient);
+
+            // Add a powerful solar directional light source to create the sharp Day/Night terminator line
+            const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+            // Position the sun sharply off to the upper-left side of space
+            sunLight.position.set(-150, 80, 100); 
+            scene.add(sunLight);
+
+            // Keep user manual navigation active and lag-free
+            myGlobe.controls().autoRotate = false;
             myGlobe.pointOfView({ altitude: 2.2 });
 
+            // Feed and execute data binding
             updateGlobeData();
-            logAIStream("<span style='color:var(--neon-green)'>3D Orbit active. Optimization level: MAX.</span>");
+            logAIStream("<span style='color:var(--neon-green)'>3D Solar Shading & Heat Signature Matrix fully operational.</span>");
         }
 
         function updateGlobeData() {
             if (!myGlobe || !globalFireData.length) return;
-            // ONLY load the geometric points, DO NOT load labelsData
+            
+            // Render all thermal data events as standard pillars
             myGlobe.pointsData(globalFireData);
+            
+            // ISOLATE TOP OUTBREAKS: Filter down to the most critical fires (Tier 8+) 
+            // and feed them exclusively into the hardware-accelerated rings generator
+            const topCriticalOutbreaks = globalFireData.filter(fire => fire.density_score >= 8);
+            myGlobe.ringsData(topCriticalOutbreaks);
         }
     </script>
 </body>
