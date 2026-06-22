@@ -8,6 +8,8 @@
     <link rel="icon" href="command.png" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="//unpkg.com/three"></script>
+    <script src="//unpkg.com/globe.gl"></script>
     
     <style>
         :root {
@@ -164,7 +166,10 @@
                 </div>
             </div>
 
-            <div id="map-container"><div id="map"></div></div>
+            <div id="map-container">
+                <div id="map"></div>
+                <div id="orbital-globe-ui" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; display: none; background: #000;"></div>
+            </div>
 
             <div class="sidebar" id="right-sidebar">
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
@@ -308,12 +313,39 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
             }
         });
 
+        let myGlobe = null; // Global variable to hold our 3D instance
+
         function switchMode(mode) {
             document.body.className = `view-${mode}`;
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`btn-${mode}`).classList.add('active');
-            if (mode !== 'telemetry') setTimeout(() => map.invalidateSize(), 400);
-            if (mode === 'telemetry') renderCharts(); 
+            
+            // Check if the nav button exists before trying to add 'active'
+            const activeBtn = document.getElementById(`btn-${mode}`);
+            if (activeBtn) activeBtn.classList.add('active');
+            
+            const mapEl = document.getElementById('map');
+            const globeEl = document.getElementById('orbital-globe-ui');
+
+            if (mode === 'orbital') {
+                // Hide 2D map, display 3D WebGL Globe
+                if (mapEl) mapEl.style.display = 'none';
+                if (globeEl) globeEl.style.display = 'block';
+                
+                // Initialize the globe if it hasn't been built yet
+                if (!myGlobe) {
+                    init3DOrbitalCenter();
+                } else {
+                    // Update data dynamically on view switch
+                    updateGlobeData();
+                }
+            } else {
+                // Show 2D map, hide 3D WebGL Globe
+                if (mapEl) mapEl.style.display = 'block';
+                if (globeEl) globeEl.style.display = 'none';
+                
+                if (mode !== 'telemetry') setTimeout(() => map.invalidateSize(), 400);
+                if (mode === 'telemetry') renderCharts(); 
+            }
         }
 
         function logAIStream(message) {
@@ -608,6 +640,57 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
         }
 
         setTimeout(runGlobalProactiveScan, 5000);
+
+        // 🔥 PHASE 2: HOLOGRAPHIC ORBITAL COMMAND CENTER 🔥
+        function init3DOrbitalCenter() {
+            logAIStream("Initializing 3D WebGL Holographic Engine...");
+            const container = document.getElementById('orbital-globe-ui');
+            
+            // 1. Build a high-performance 3D Earth
+            myGlobe = Globe()(container)
+                .globeImageUrl('//unpkg.com/three-globe/example/img/earth-dark.jpg') // Dark blueprint texture
+                .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png') // Real mountain topography
+                .backgroundColor('#020205') // Deep space void color
+                .showAtmosphere(true)
+                .atmosphereColor('#00f3ff') // Cyber glow atmosphere
+                .atmosphereMaxAltitude(0.15)
+                
+                // 2. Map Configuration for Fire Points
+                .pointLat('lat')
+                .pointLng('lon')
+                .pointColor(d => d.density_score >= 8 ? '#ff3b30' : (d.density_score >= 3 ? '#ff9f0a' : '#10b981'))
+                .pointAltitude(d => Math.min(d.density_score * 0.04, 0.4)) // Scale height based on severity
+                .pointRadius(0.25)
+                .pointsTransitionDuration(1000)
+                
+                // 3. Label/Interactive HUD Overlays
+                .labelText('title')
+                .labelSize(0.6)
+                .labelDotRadius(0.2)
+                .labelColor(() => 'rgba(0, 243, 255, 0.85)')
+                .labelResolution(3)
+                .onPointClick(fire => {
+                    logAIStream(`Orbital focus shifted to sector: ${fire.title}`);
+                    // Trigger your existing detailed inspection API macro automatically!
+                    switchMode('tactical');
+                    inspectFire(fire);
+                });
+
+            // 4. Auto-rotate the globe slowly for a cinematic command center look
+            myGlobe.controls().autoRotate = true;
+            myGlobe.controls().autoRotateSpeed = 0.5;
+
+            // Feed the live data arrays straight into WebGL
+            updateGlobeData();
+            logAIStream("<span style='color:var(--neon-green)'>3D Holographic Orbit active and synced with NASA uplink.</span>");
+        }
+
+        function updateGlobeData() {
+            if (!myGlobe || !globalFireData.length) return;
+            // Inject our live array of fire points into the 3D environment
+            myGlobe.pointsData(globalFireData);
+            myGlobe.labelsData(globalFireData);
+        }
     </script>
 </body>
 </html>
