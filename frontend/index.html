@@ -240,16 +240,28 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
-const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
+// 🔒 FIX: Lock map boundaries so the world doesn't repeat for the judges
+        const bounds = [[-90, -180], [90, 180]];
+        const map = L.map('map', { 
+            preferCanvas: true,
+            maxBounds: bounds,           // Restricts panning past the poles/dateline
+            maxBoundsViscosity: 1.0,     // Makes the borders completely solid
+            minZoom: 2.5                 // Prevents zooming out too far to see the edges
+        }).setView([20, 0], 2.5);
+
         const backendUrl = "https://climate-shield-api.onrender.com";
         let currentWindLine = null;
-        let currentPlume = null; // 🔒 NEW: Tracks the active toxic smoke cone
+        let currentPlume = null;
         
         let globalFireData = []; 
-        let displayedFiresCount = 50; // Infinite Scroll Limit
+        let displayedFiresCount = 50; 
         let currentSortMode = 'desc';
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
+        // Add 'noWrap: true' to the tile layer to stop infinite scrolling
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
+            maxZoom: 18, 
+            noWrap: true 
+        }).addTo(map);
 
         // Global Hotspots for the Proactive AI Matrix
         const AI_HOTSPOTS = [
