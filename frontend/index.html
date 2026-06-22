@@ -893,24 +893,24 @@ let firmsRadiometryLayer = L.layerGroup();
 
         fire.markerRef.setPopupContent(`
                 <div style="font-family: monospace; min-width: 320px; font-size: 0.8rem; line-height: 1.6; color: #fff;">
-                    <b style="color: #00f3ff; font-size: 0.95rem; display: block; margin-bottom: 4px;">📋 Suppression Engineering Report</b>
+                    <b style="color: #00f3ff; font-size: 0.95rem; display: block; margin-bottom: 4px;">Fire Suppression Report</b>
                     <span style="color:#a1a1aa; font-size:0.7rem; display:block; margin-bottom:8px;">Derived from real-time meteorological & thermal data</span>
                     
                     <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px;">
-                        📐 <b>Est. Active Front:</b> ~${estAreaHectares} Hectares<br>
-                        🔥 <b>Fireline Intensity:</b> ${fireLineIntensity.toLocaleString()} kW/m<br>
-                        📏 <b>Estimated Flame Height:</b> ${flameLengthMeters} meters
+                        <b>Active Fire Area:</b> ~${estAreaHectares} Hectares<br>
+                        <b>Fire Intensity:</b> ${fireLineIntensity.toLocaleString()} kW/m<br>
+                        <b>Est. Flame Height:</b> ${flameLengthMeters} meters
                     </div>
 
                     <div style="background: rgba(0, 243, 255, 0.05); padding: 8px; border-radius: 4px; border: 1px solid rgba(0, 243, 255, 0.2); margin-bottom: 8px;">
-                        💧 <b>Required Suppressant Volume:</b><br>
+                        💧 <b>Water Needed to Extinguish:</b><br>
                         <span style="font-size: 1rem; color: #00f3ff; font-weight: bold;">${waterNeededLiters.toLocaleString()} Liters</span><br>
-                        <span style="color:#a1a1aa; font-size:0.7rem;">(Volume required to break the thermal feedback loop)</span>
+                        <span style="color:#a1a1aa; font-size:0.7rem;">(Required to break the heat cycle)</span>
                     </div>
 
                     <div style="font-size: 0.75rem; padding: 4px 0;">
-                        ⚠️ <b>Tactical Control Index:</b> <b style="color: ${diffColor};">${difficultyRating}</b><br>
-                        ⛰️ <b>Slope/Elevation Factor:</b> ${elevationM}m Above Sea Level
+                        <b>Control Strategy:</b> <b style="color: ${diffColor};">${difficultyRating}</b><br>
+                        <b>Elevation:</b> ${elevationM}m Above Sea Level
                     </div>
                     <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 8px; margin-bottom: 6px;">
                     <span style="color: #a1a1aa; font-size: 0.7rem; display: block; text-align: center;">Data remains live. Click map to reset calculation view.</span>
