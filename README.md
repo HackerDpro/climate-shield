@@ -1,4 +1,4 @@
-# The README file is devided in two sections, the first one is a easy-to-read summery made by AI (Gemini 3.1 Pro), the seccond section is a more detailed blog written by me.
+# The README file is devided in two sections, the first one is a easy-to-read summery made by AI (Gemini 3.1 Pro), the seccond section is an more detailed blog written by me.
 
 # Climate Shield: Global Wildfire Predictive Dashboard
 
