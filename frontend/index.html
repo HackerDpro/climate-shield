@@ -8,8 +8,8 @@
     <link rel="icon" href="command.png" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="//unpkg.com/three"></script>
-    <script src="//unpkg.com/globe.gl"></script>
+<script src="//unpkg.com/three/build/three.min.js"></script>
+<script src="//unpkg.com/globe.gl"></script>   
     
     <style>
         :root {
@@ -653,20 +653,21 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
                 .backgroundColor('#020205') // Deep space void color
                 .showAtmosphere(true)
                 .atmosphereColor('#00f3ff') // Cyber glow atmosphere
-                .atmosphereMaxAltitude(0.15)
+                .atmosphereAltitude(0.15)   // 🔒 FIXED ERROR
                 
                 // 2. Map Configuration for Fire Points
                 .pointLat('lat')
                 .pointLng('lon')
+                // Add extreme glow to critical fires
                 .pointColor(d => d.density_score >= 8 ? '#ff3b30' : (d.density_score >= 3 ? '#ff9f0a' : '#10b981'))
-                .pointAltitude(d => Math.min(d.density_score * 0.04, 0.4)) // Scale height based on severity
-                .pointRadius(0.25)
-                .pointsTransitionDuration(1000)
+                .pointAltitude(d => Math.min(d.density_score * 0.04, 0.3)) // Pillar height
+                .pointRadius(0.3) // Fatter neon pillars
+                .pointsTransitionDuration(1500) // Smooth rising animation
                 
                 // 3. Label/Interactive HUD Overlays
                 .labelText('title')
                 .labelSize(0.6)
-                .labelDotRadius(0.2)
+                .labelDotRadius(0.1)
                 .labelColor(() => 'rgba(0, 243, 255, 0.85)')
                 .labelResolution(3)
                 .onPointClick(fire => {
@@ -678,18 +679,14 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
 
             // 4. Auto-rotate the globe slowly for a cinematic command center look
             myGlobe.controls().autoRotate = true;
-            myGlobe.controls().autoRotateSpeed = 0.5;
+            myGlobe.controls().autoRotateSpeed = 0.8;
+            
+            // 5. Adjust the starting camera distance so the globe fills the screen perfectly
+            myGlobe.pointOfView({ altitude: 2.2 });
 
             // Feed the live data arrays straight into WebGL
             updateGlobeData();
             logAIStream("<span style='color:var(--neon-green)'>3D Holographic Orbit active and synced with NASA uplink.</span>");
-        }
-
-        function updateGlobeData() {
-            if (!myGlobe || !globalFireData.length) return;
-            // Inject our live array of fire points into the 3D environment
-            myGlobe.pointsData(globalFireData);
-            myGlobe.labelsData(globalFireData);
         }
     </script>
 </body>
