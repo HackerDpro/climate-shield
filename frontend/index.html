@@ -1,311 +1,667 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CLIMATE SHIELD</title>
-    
+
     <link rel="icon" href="icons8-earth-96 (1).png" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="//unpkg.com/three/build/three.min.js"></script>
-<script src="//unpkg.com/globe.gl"></script>   
-    
+    <script src="//unpkg.com/three/build/three.min.js"></script>
+    <script src="//unpkg.com/globe.gl"></script>
+
     <style>
-        :root {
-            --bg-primary: #06080c;
-            --bg-panel: rgba(10, 15, 24, 0.85);
-            --neon-cyan: #00f3ff;
-            --neon-red: #ff3b30;
-            --neon-amber: #ff9f0a;
-            --neon-green: #10b981;
-            --text-main: #d1d5db;
-            --border-tech: 1px solid rgba(0, 243, 255, 0.15);
+      :root {
+        --bg-primary: #06080c;
+        --bg-panel: rgba(10, 15, 24, 0.85);
+        --neon-cyan: #00f3ff;
+        --neon-red: #ff3b30;
+        --neon-amber: #ff9f0a;
+        --neon-green: #10b981;
+        --text-main: #d1d5db;
+        --border-tech: 1px solid rgba(0, 243, 255, 0.15);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      /* --- CYBERPUNK SCROLLBARS --- */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: var(--bg-primary);
+        border-left: 1px solid rgba(255, 255, 255, 0.02);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: rgba(0, 243, 255, 0.2);
+        border-radius: 10px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 243, 255, 0.6);
+      }
+
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Courier New", Courier, monospace;
+        background-color: var(--bg-primary);
+        color: var(--text-main);
+      }
+
+      /* Fixed Navigation Header */
+      #top-nav {
+        position: absolute;
+        top: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        display: flex;
+        gap: 10px;
+        background: rgba(4, 6, 10, 0.85);
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: var(--border-tech);
+        backdrop-filter: blur(10px);
+      }
+
+      .nav-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: #4b5563;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-family: monospace;
+        font-weight: bold;
+        transition: all 0.2s ease;
+        border-radius: 4px;
+        letter-spacing: 1px;
+        font-size: 0.8rem;
+      }
+
+      .nav-btn:hover {
+        color: var(--text-main);
+      }
+
+      .nav-btn.active {
+        background: rgba(0, 243, 255, 0.1);
+        color: var(--neon-cyan);
+        border: var(--border-tech);
+        box-shadow: 0 0 10px rgba(0, 243, 255, 0.15);
+      }
+
+      #app-core {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      #command-wrapper {
+        display: grid;
+        grid-template-columns: 340px 1fr 340px;
+        width: 100%;
+        height: 100%;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      body.view-orbital #command-wrapper {
+        grid-template-columns: 0px 1fr 0px;
+      }
+
+      body.view-orbital .sidebar {
+        opacity: 0;
+        pointer-events: none;
+        padding: 0;
+        border: none;
+      }
+
+      body.view-telemetry #command-wrapper {
+        display: none;
+      }
+
+      body.view-telemetry #telemetry-dashboard {
+        display: block;
+      }
+
+      .sidebar {
+        background: var(--bg-panel);
+        backdrop-filter: blur(15px);
+        border-right: var(--border-tech);
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        padding-top: 75px;
+        z-index: 10;
+        overflow-y: auto;
+        overflow-x: hidden;
+        transition: all 0.3s ease;
+        height: 100%;
+      }
+
+      #right-sidebar {
+        border-right: none;
+        border-left: var(--border-tech);
+      }
+
+      #map-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+      }
+
+      #map {
+        width: 100%;
+        height: 100%;
+        background: #05070f;
+      }
+
+      #telemetry-dashboard {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #04060a;
+        z-index: 50;
+        padding: 80px 30px 30px 30px;
+        overflow-y: auto;
+        background-image: radial-gradient(
+          circle at center,
+          rgba(0, 243, 255, 0.03) 0%,
+          transparent 80%
+        );
+      }
+
+      .telemetry-grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 20px;
+        max-width: 1600px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 1.2rem;
+        color: var(--neon-cyan);
+        margin: 0 0 5px 0;
+        letter-spacing: 2px;
+      }
+
+      h2 {
+        font-size: 0.85rem;
+        color: var(--neon-amber);
+        margin: 20px 0 10px 0;
+        border-bottom: 1px solid rgba(255, 159, 10, 0.15);
+        padding-bottom: 5px;
+        letter-spacing: 1px;
+      }
+
+      .metric-box {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        padding: 15px;
+        border-radius: 4px;
+      }
+
+      .metric-val {
+        font-size: 1.6rem;
+        color: var(--neon-cyan);
+        font-weight: bold;
+        margin-top: 5px;
+        font-family: monospace;
+      }
+
+      .chart-wrapper {
+        position: relative;
+        height: 260px;
+        width: 100%;
+        margin-top: 10px;
+      }
+
+      .threat-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex-grow: 1;
+      }
+
+      .threat-card {
+        padding: 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .threat-card:hover {
+        transform: translateX(-4px);
+        filter: brightness(1.2);
+      }
+
+      .threat-title {
+        font-weight: bold;
+        font-size: 0.8rem;
+        margin-bottom: 4px;
+      }
+
+      .satellite-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      }
+
+      /* AI Box dynamically stretches to bottom */
+      .cyber-log {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(0, 243, 255, 0.05);
+        padding: 10px;
+        font-size: 0.7rem;
+        color: #8892b0;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 4px;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      /* Sort Dropdown styling */
+      .sort-select {
+        background: rgba(0, 0, 0, 0.5);
+        color: var(--neon-cyan);
+        border: 1px solid rgba(0, 243, 255, 0.2);
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-family: monospace;
+        font-size: 0.7rem;
+        outline: none;
+        cursor: pointer;
+      }
+
+      .sort-select:focus {
+        border-color: var(--neon-cyan);
+      }
+
+      .tele-card-full {
+        grid-column: span 12;
+      }
+
+      .tele-card-6 {
+        grid-column: span 6;
+      }
+
+      .tele-card-4 {
+        grid-column: span 4;
+      }
+
+      @media (max-width: 1024px) {
+        .tele-card-6,
+        .tele-card-4 {
+          grid-column: span 12;
         }
+      }
 
-        * { box-sizing: border-box; }
+      .leaflet-popup-content-wrapper {
+        background: rgba(8, 12, 20, 0.9) !important;
+        color: var(--text-main) !important;
+        border: var(--border-tech);
+        border-radius: 4px;
+        backdrop-filter: blur(8px);
+      }
 
-        /* --- CYBERPUNK SCROLLBARS --- */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg-primary); border-left: 1px solid rgba(255,255,255,0.02); }
-        ::-webkit-scrollbar-thumb { background: rgba(0, 243, 255, 0.2); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 243, 255, 0.6); }
-
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; font-family: 'Courier New', Courier, monospace;
-            background-color: var(--bg-primary); color: var(--text-main);
-        }
-
-        /* Fixed Navigation Header */
-        #top-nav {
-            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-            z-index: 1000; display: flex; gap: 10px;
-            background: rgba(4, 6, 10, 0.85); padding: 6px 12px; border-radius: 6px; border: var(--border-tech);
-            backdrop-filter: blur(10px);
-        }
-        
-        .nav-btn {
-            background: transparent; border: 1px solid transparent; color: #4b5563;
-            padding: 8px 16px; cursor: pointer; font-family: monospace; font-weight: bold;
-            transition: all 0.2s ease; border-radius: 4px; letter-spacing: 1px; font-size: 0.8rem;
-        }
-        
-        .nav-btn:hover { color: var(--text-main); }
-        .nav-btn.active { background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); border: var(--border-tech); box-shadow: 0 0 10px rgba(0,243,255,0.15); }
-
-        #app-core { position: relative; width: 100%; height: 100%; }
-
-        #command-wrapper {
-            display: grid; grid-template-columns: 340px 1fr 340px;
-            width: 100%; height: 100%; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        body.view-orbital #command-wrapper { grid-template-columns: 0px 1fr 0px; }
-        body.view-orbital .sidebar { opacity: 0; pointer-events: none; padding: 0; border: none; }
-        
-        body.view-telemetry #command-wrapper { display: none; }
-        body.view-telemetry #telemetry-dashboard { display: block; }
-
-        .sidebar {
-            background: var(--bg-panel); backdrop-filter: blur(15px);
-            border-right: var(--border-tech); display: flex; flex-direction: column;
-            padding: 20px; padding-top: 75px; z-index: 10; overflow-y: auto; overflow-x: hidden;
-            transition: all 0.3s ease; height: 100%;
-        }
-
-        #right-sidebar { border-right: none; border-left: var(--border-tech); }
-        #map-container { position: relative; width: 100%; height: 100%; z-index: 1; }
-        #map { width: 100%; height: 100%; background: #05070f; }
-
-        #telemetry-dashboard {
-            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #04060a; z-index: 50; padding: 80px 30px 30px 30px; overflow-y: auto;
-            background-image: radial-gradient(circle at center, rgba(0,243,255,0.03) 0%, transparent 80%);
-        }
-
-        .telemetry-grid {
-            display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; max-width: 1600px; margin: 0 auto;
-        }
-
-        h1 { font-size: 1.2rem; color: var(--neon-cyan); margin: 0 0 5px 0; letter-spacing: 2px; }
-        h2 { font-size: 0.85rem; color: var(--neon-amber); margin: 20px 0 10px 0; border-bottom: 1px solid rgba(255,159,10,0.15); padding-bottom: 5px; letter-spacing: 1px;}
-        
-        .metric-box { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); padding: 15px; border-radius: 4px; }
-        .metric-val { font-size: 1.6rem; color: var(--neon-cyan); font-weight: bold; margin-top: 5px; font-family: monospace; }
-
-        .chart-wrapper { position: relative; height: 260px; width: 100%; margin-top: 10px; }
-
-        .threat-list { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; }
-        .threat-card { padding: 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; }
-        .threat-card:hover { transform: translateX(-4px); filter: brightness(1.2); }
-        .threat-title { font-weight: bold; font-size: 0.8rem; margin-bottom: 4px; }
-
-        .satellite-row { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
-        
-        /* AI Box dynamically stretches to bottom */
-        .cyber-log { 
-            background: rgba(0,0,0,0.4); border: 1px solid rgba(0,243,255,0.05); 
-            padding: 10px; font-size: 0.7rem; color: #8892b0;
-            flex-grow: 1; display: flex; flex-direction: column-reverse; 
-            gap: 4px; overflow-y: auto; overflow-x: hidden;
-        }
-
-        /* Sort Dropdown styling */
-        .sort-select {
-            background: rgba(0,0,0,0.5); color: var(--neon-cyan);
-            border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 4px;
-            padding: 4px 8px; font-family: monospace; font-size: 0.7rem;
-            outline: none; cursor: pointer;
-        }
-        .sort-select:focus { border-color: var(--neon-cyan); }
-
-        .tele-card-full { grid-column: span 12; }
-        .tele-card-6 { grid-column: span 6; }
-        .tele-card-4 { grid-column: span 4; }
-
-        @media (max-width: 1024px) {
-            .tele-card-6, .tele-card-4 { grid-column: span 12; }
-        }
-
-        .leaflet-popup-content-wrapper { background: rgba(8, 12, 20, 0.9) !important; color: var(--text-main) !important; border: var(--border-tech); border-radius: 4px; backdrop-filter: blur(8px); }
-        .leaflet-popup-tip { background: rgba(8, 12, 20, 0.9) !important; border: var(--border-tech); }
+      .leaflet-popup-tip {
+        background: rgba(8, 12, 20, 0.9) !important;
+        border: var(--border-tech);
+      }
     </style>
-</head>
-<body class="view-tactical">
+  </head>
 
+  <body class="view-tactical">
     <div id="top-nav">
-        <button class="nav-btn active" onclick="switchMode('tactical')" id="btn-tactical">TACTICAL</button>
-        <button class="nav-btn" onclick="switchMode('orbital')" id="btn-orbital">ORBITAL</button>
-        <button class="nav-btn" onclick="switchMode('telemetry')" id="btn-telemetry">TELEMETRY</button>
+      <button
+        class="nav-btn active"
+        onclick="switchMode('tactical')"
+        id="btn-tactical"
+      >
+        TACTICAL
+      </button>
+      <button class="nav-btn" onclick="switchMode('orbital')" id="btn-orbital">
+        ORBITAL
+      </button>
+      <button
+        class="nav-btn"
+        onclick="switchMode('telemetry')"
+        id="btn-telemetry"
+      >
+        TELEMETRY
+      </button>
     </div>
 
     <div id="app-core">
-        
-        <div id="command-wrapper">
-            <div class="sidebar" id="left-sidebar">
-                <h1>CLIMATE SHIELD</h1>
-                
-                <h2>Telemetry</h2>
-                <div class="metric-box">
-                    <div style="font-size: 0.7rem; opacity: 0.6; letter-spacing: 1px;">ACTIVE DETECTIONS</div>
-                    <div class="metric-val" id="total-fires">0000</div>
-                </div>
+      <div id="command-wrapper">
+        <div class="sidebar" id="left-sidebar">
+          <h1>CLIMATE SHIELD</h1>
 
-                <h2>🛰️ Satellite Status</h2>
-                <div class="metric-box" style="padding: 10px 15px;">
-                    <div class="satellite-row"><span>EOS-AM1 (TERRA)</span><span style="color:var(--neon-green)">ONLINE</span></div>
-                    <div class="satellite-row"><span>EOS-PM1 (AQUA)</span><span style="color:var(--neon-green)">ONLINE</span></div>
-                    <div class="satellite-row"><span>SUOMI NPP</span><span style="color:var(--neon-amber)">DEGRADED</span></div>
-                    <div class="satellite-row"><span>JPSS-1 (NOAA-20)</span><span style="color:var(--neon-green)">ONLINE</span></div>
-                </div>
-
-                <h2>🤖 AI Real-Time Stream</h2>
-                <div class="cyber-log" id="cyber-stream">
-                    <div>[SYS] Listening for planetary hotspot signature flags...</div>
-                </div>
+          <h2>Telemetry</h2>
+          <div class="metric-box">
+            <div style="font-size: 0.7rem; opacity: 0.6; letter-spacing: 1px">
+              ACTIVE DETECTIONS
             </div>
+            <div class="metric-val" id="total-fires">0000</div>
+          </div>
 
-            <div id="map-container">
-                <div id="map"></div>
-                <div id="orbital-globe-ui" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; display: none; background: #000;"></div>
+          <h2>🛰️ Satellite Status</h2>
+          <div class="metric-box" style="padding: 10px 15px">
+            <div class="satellite-row">
+              <span>EOS-AM1 (TERRA)</span
+              ><span style="color: var(--neon-green)">ONLINE</span>
             </div>
+            <div class="satellite-row">
+              <span>EOS-PM1 (AQUA)</span
+              ><span style="color: var(--neon-green)">ONLINE</span>
+            </div>
+            <div class="satellite-row">
+              <span>SUOMI NPP</span
+              ><span style="color: var(--neon-amber)">DEGRADED</span>
+            </div>
+            <div class="satellite-row">
+              <span>JPSS-1 (NOAA-20)</span
+              ><span style="color: var(--neon-green)">ONLINE</span>
+            </div>
+          </div>
 
-            <div class="sidebar" id="right-sidebar">
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
-                    <h2 style="margin: 0; border: none; padding: 0;">🚨 THREATS</h2>
-                    <select class="sort-select" id="threat-sort" onchange="handleSortChange()">
-                        <option value="desc">Danger: High - Low</option>
-                        <option value="asc">Danger: Low - High</option>
-                    </select>
-                </div>
-                <div class="threat-list" id="threat-matrix"></div>
-            </div>
+          <div style="margin-top: 15px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); padding: 12px; font-family: monospace; border-radius: 4px;">
+    <div style="color: #bf5af2; font-weight: bold; font-size: 0.85rem; margin-bottom: 8px;">🌍 MULTI-SPECTRAL SENSOR ARRAYS</div>
+    
+    <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; margin-bottom: 8px; cursor: pointer;">
+        <input type="checkbox" onchange="window.toggleMudslideTracker(this.checked)" style="margin-right: 8px; accent-color: #bf5af2;">
+        ⚠️ BURN SCAR MUDSLIDE RADAR
+    </label>
+    <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; margin-bottom: 8px; cursor: pointer;">
+        <input type="checkbox" onchange="window.toggleOceanThermalTracker(this.checked)" style="margin-right: 8px; accent-color: #0a84ff;">
+        🌀 DEEP-OCEAN CYCLONE ANOMALIES
+    </label>
+
+    <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; margin-bottom: 8px; cursor: pointer;">
+        <input type="checkbox" onchange="window.toggleLithosphere(this.checked)" style="margin-right: 8px; accent-color: #ff9f0a;">
+        💥 LITHOSPHERIC SEISMIC MATRIX (>4.5 M)
+    </label>
+    <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; margin-bottom: 8px; cursor: pointer;">
+        <input type="checkbox" onchange="window.toggleVolcanoes(this.checked)" style="margin-right: 8px; accent-color: #ff3b30;">
+        🌋 VOLCANIC ERUPTION/ASH TRACKER
+    </label>
+    <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; cursor: pointer;">
+        <input type="checkbox" onchange="window.toggleRawFIRMS(this.checked)" style="margin-right: 8px; accent-color: #00f3ff;">
+        🛰️ RAW SATELLITE RADIOMETRY (FRP / Temp)
+    </label>
+</div>
+
+          <h2>🤖 AI Real-Time Stream</h2>
+          <div class="cyber-log" id="cyber-stream">
+            <div>[SYS] Listening for planetary hotspot signature flags...</div>
+          </div>
         </div>
 
-        <div id="telemetry-dashboard">
-            <div style="border-bottom: 1px solid rgba(0,243,255,0.1); padding-bottom: 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-end;">
-                <div>
-                    <h1 style="font-size: 1.8rem; margin: 0; color: #fff;">ECOSYSTEM TELEMETRY</h1>
-                    <p style="color: #6b7280; margin: 5px 0 0 0; font-size: 0.85rem;">Predictive AI Analytics</p>
-                </div>
-            </div>
-            
-            <div class="telemetry-grid">
-                <div class="metric-box tele-card-4">
-                    <div style="font-size: 0.75rem; color: #a1a1aa;">TOTAL ATMOSPHERIC CARBON FLUX</div>
-                    <div class="metric-val" id="kpi-carbon">0.00 MT</div>
-                </div>
-                <div class="metric-box tele-card-4">
-                    <div style="font-size: 0.75rem; color: #a1a1aa;">CRITICAL EMERGENCY OUTBREAKS</div>
-                    <div class="metric-val" id="kpi-critical" style="color: var(--neon-red);">0</div>
-                </div>
-                <div class="metric-box tele-card-4">
-                    <div style="font-size: 0.75rem; color: #a1a1aa;">AI PREDICTIVE RISK AVERAGE</div>
-                    <div class="metric-val" id="kpi-risk" style="color: var(--neon-amber);">0.0%</div>
-                </div>
-
-                <div class="metric-box tele-card-6">
-                    <h2>Threat Threshold Spread</h2>
-                    <div class="chart-wrapper"><canvas id="threatChart"></canvas></div>
-                </div>
-
-                <div class="metric-box tele-card-6">
-                    <h2>Atmospheric CO2 Trajectory (Est. Megatons)</h2>
-                    <div class="chart-wrapper"><canvas id="carbonChart"></canvas></div>
-                </div>
-
-                <div class="metric-box tele-card-full">
-                    <h2>📋 Top 10 Active Outbreaks</h2>
-                    <div style="overflow-x: auto; margin-top: 10px;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left;" id="data-matrix-table">
-                            <thead>
-                                <tr style="border-bottom: 2px solid rgba(0,243,255,0.2); color: var(--neon-cyan);">
-                                    <th style="padding: 10px 5px;">LOCATION / INCIDENT</th>
-                                    <th>LATITUDE</th>
-                                    <th>LONGITUDE</th>
-                                    <th>DENSITY RANK</th>
-                                    <th>STATUS FLAG</th>
-                                </tr>
-                            </thead>
-                            <tbody style="color: #a1a1aa;" id="table-body-matrix"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+        <div id="map-container">
+          <div id="map"></div>
+          <div
+            id="orbital-globe-ui"
+            style="
+              width: 100%;
+              height: 100%;
+              position: absolute;
+              top: 0;
+              left: 0;
+              z-index: 1;
+              display: none;
+              background: #000;
+            "
+          ></div>
         </div>
 
+        <div class="sidebar" id="right-sidebar">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              margin-bottom: 10px;
+            "
+          >
+            <h2 style="margin: 0; border: none; padding: 0">🚨 THREATS</h2>
+            <select
+              class="sort-select"
+              id="threat-sort"
+              onchange="handleSortChange()"
+            >
+              <option value="desc">Danger: High - Low</option>
+              <option value="asc">Danger: Low - High</option>
+            </select>
+          </div>
+          <div class="threat-list" id="threat-matrix"></div>
+        </div>
+      </div>
+
+      <div id="telemetry-dashboard">
+        <div
+          style="
+            border-bottom: 1px solid rgba(0, 243, 255, 0.1);
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+          "
+        >
+          <div>
+            <h1 style="font-size: 1.8rem; margin: 0; color: #fff">
+              ECOSYSTEM TELEMETRY
+            </h1>
+            <p style="color: #6b7280; margin: 5px 0 0 0; font-size: 0.85rem">
+              Predictive AI Analytics
+            </p>
+          </div>
+        </div>
+
+        <div class="telemetry-grid">
+          <div class="metric-box tele-card-4">
+            <div style="font-size: 0.75rem; color: #a1a1aa">
+              TOTAL ATMOSPHERIC CARBON FLUX
+            </div>
+            <div class="metric-val" id="kpi-carbon">0.00 MT</div>
+          </div>
+          <div class="metric-box tele-card-4">
+            <div style="font-size: 0.75rem; color: #a1a1aa">
+              CRITICAL EMERGENCY OUTBREAKS
+            </div>
+            <div
+              class="metric-val"
+              id="kpi-critical"
+              style="color: var(--neon-red)"
+            >
+              0
+            </div>
+          </div>
+          <div class="metric-box tele-card-4">
+            <div style="font-size: 0.75rem; color: #a1a1aa">
+              AI PREDICTIVE RISK AVERAGE
+            </div>
+            <div
+              class="metric-val"
+              id="kpi-risk"
+              style="color: var(--neon-amber)"
+            >
+              0.0%
+            </div>
+          </div>
+
+          <div class="metric-box tele-card-6">
+            <h2>Threat Threshold Spread</h2>
+            <div class="chart-wrapper"><canvas id="threatChart"></canvas></div>
+          </div>
+
+          <div class="metric-box tele-card-6">
+            <h2>Atmospheric CO2 Trajectory (Est. Megatons)</h2>
+            <div class="chart-wrapper"><canvas id="carbonChart"></canvas></div>
+          </div>
+
+          <div class="metric-box tele-card-full">
+            <h2>📋 Top 10 Active Outbreaks</h2>
+            <div style="overflow-x: auto; margin-top: 10px">
+              <table
+                style="
+                  width: 100%;
+                  border-collapse: collapse;
+                  font-size: 0.8rem;
+                  text-align: left;
+                "
+                id="data-matrix-table"
+              >
+                <thead>
+                  <tr
+                    style="
+                      border-bottom: 2px solid rgba(0, 243, 255, 0.2);
+                      color: var(--neon-cyan);
+                    "
+                  >
+                    <th style="padding: 10px 5px">LOCATION / INCIDENT</th>
+                    <th>LATITUDE</th>
+                    <th>LONGITUDE</th>
+                    <th>DENSITY RANK</th>
+                    <th>STATUS FLAG</th>
+                  </tr>
+                </thead>
+                <tbody style="color: #a1a1aa" id="table-body-matrix"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
+
     <script>
-// 🔒 FIX: Lock map boundaries so the world doesn't repeat for the judges
-        const bounds = [[-90, -180], [90, 180]];
-        const map = L.map('map', { 
-            preferCanvas: true,
-            maxBounds: bounds,           // Restricts panning past the poles/dateline
-            maxBoundsViscosity: 1.0,     // Makes the borders completely solid
-            minZoom: 2.5                 // Prevents zooming out too far to see the edges
-        }).setView([20, 0], 2.5);
+      // 🔒 FIX: Lock map boundaries so the world doesn't repeat for the judges
+      const bounds = [
+        [-90, -180],
+        [90, 180],
+      ];
+      const map = L.map("map", {
+        preferCanvas: true,
+        maxBounds: bounds, // Restricts panning past the poles/dateline
+        maxBoundsViscosity: 1.0, // Makes the borders completely solid
+        minZoom: 2.5, // Prevents zooming out too far to see the edges
+      }).setView([20, 0], 2.5);
 
-        const backendUrl = "https://climate-shield-api.onrender.com";
-        let currentWindLine = null;
-        let currentPlume = null;
-        
-        let globalFireData = []; 
-        let displayedFiresCount = 50; 
-        let currentSortMode = 'desc';
+      const backendUrl = "https://climate-shield-api.onrender.com";
+      let currentWindLine = null;
+      let currentPlume = null;
 
-        // Add 'noWrap: true' to the tile layer to stop infinite scrolling
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
-            maxZoom: 18, 
-            noWrap: true 
+      let globalFireData = [];
+      let displayedFiresCount = 50;
+      let currentSortMode = "desc";
+
+      // 🌊 PHASE 4: MULTI-SPECTRAL LAYER GROUPS
+        let mudslideLayerGroup = L.layerGroup();
+        let hurricaneLayerGroup = L.layerGroup();
+        let activeSpectralLayers = { mudslides: false, oceanThermal: false };
+
+      let lithosphereLayer = L.layerGroup();
+let volcanoLayer = L.layerGroup();
+let firmsRadiometryLayer = L.layerGroup();
+
+      // Add 'noWrap: true' to the tile layer to stop infinite scrolling
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        {
+          maxZoom: 18,
+          noWrap: true,
+        },
+      ).addTo(map);
+
+      // Global Hotspots for the Proactive AI Matrix
+      const AI_HOTSPOTS = [
+        { name: "Amazon Basin", lat: -3.46, lon: -62.21 },
+        { name: "California Scrublands", lat: 37.77, lon: -119.41 },
+        { name: "Australian Outback", lat: -25.27, lon: 133.77 },
+        { name: "Siberian Taiga", lat: 61.38, lon: 98.83 },
+        { name: "Mediterranean Coast", lat: 39.07, lon: 21.82 },
+      ];
+
+      // 🔥 PHASE 1: TACTICAL PREDICTIVE SCANNER 🔥
+      // Allows the user to click anywhere on the empty map to run a Pre-Crime AI scan
+      map.on("click", async function (e) {
+        // 🔒 THE WALL: Ignore clicks if they hit a popup, button, or marker icon
+        if (
+          e.originalEvent.target.closest(".leaflet-popup") ||
+          e.originalEvent.target.closest(".leaflet-marker-icon")
+        ) {
+          return;
+        }
+
+        // ... (The rest of your existing AI Predictive Analysis code stays exactly the same below this)
+
+        const lat = e.latlng.lat;
+        const lon = e.latlng.lng;
+
+        // 1. Draw a glowing cyan scanning ring (Expanded to an impressive 80km radius)
+        const scanRing = L.circle([lat, lon], {
+          color: "#00f3ff",
+          weight: 2,
+          fillColor: "#00f3ff",
+          fillOpacity: 0.1,
+          radius: 80000, // 80km expanded tactical scan radius
+          dashArray: "4, 6",
         }).addTo(map);
 
-        // Global Hotspots for the Proactive AI Matrix
-        const AI_HOTSPOTS = [
-            { name: "Amazon Basin", lat: -3.46, lon: -62.21 },
-            { name: "California Scrublands", lat: 37.77, lon: -119.41 },
-            { name: "Australian Outback", lat: -25.27, lon: 133.77 },
-            { name: "Siberian Taiga", lat: 61.38, lon: 98.83 },
-            { name: "Mediterranean Coast", lat: 39.07, lon: 21.82 }
-        ];
+        scanRing
+          .bindPopup(
+            `<span style="color:var(--neon-cyan); font-family:monospace;">Initiating Orbital Scan...</span>`,
+          )
+          .openPopup();
+        logAIStream(
+          `Initiating predictive AI scan at sector [${lat.toFixed(2)}, ${lon.toFixed(2)}]...`,
+        );
 
-        // 🔥 PHASE 1: TACTICAL PREDICTIVE SCANNER 🔥
-        // Allows the user to click anywhere on the empty map to run a Pre-Crime AI scan
-        map.on('click', async function(e) {
-            // Only allow scanning in Tactical Mode
-            if(document.body.className !== 'view-tactical') return; 
+        try {
+          // 2. Ping the new backend engine we just built
+          const res = await fetch(
+            `${backendUrl}/api/ignition_risk?lat=${lat}&lon=${lon}`,
+          );
+          const data = await res.json();
 
-            const lat = e.latlng.lat;
-            const lon = e.latlng.lng;
+          if (data.status === "success") {
+            // 3. Change ring color based on AI Threat Level
+            let riskVal = parseFloat(data.ignition_probability);
+            let color =
+              riskVal >= 75 ? "#ff3b30" : riskVal >= 50 ? "#ff9f0a" : "#10b981";
 
-            // 1. Draw a glowing cyan scanning ring (Expanded to an impressive 80km radius)
-            const scanRing = L.circle([lat, lon], {
-                color: '#00f3ff', weight: 2,
-                fillColor: '#00f3ff', fillOpacity: 0.1,
-                radius: 80000, // 80km expanded tactical scan radius
-                dashArray: '4, 6'
-            }).addTo(map);
+            scanRing.setStyle({
+              color: color,
+              fillColor: color,
+              fillOpacity: 0.2,
+              dashArray: "",
+            });
 
-            scanRing.bindPopup(`<span style="color:var(--neon-cyan); font-family:monospace;">Initiating Orbital Scan...</span>`).openPopup();
-            logAIStream(`Initiating predictive AI scan at sector [${lat.toFixed(2)}, ${lon.toFixed(2)}]...`);
-
-            try {
-                // 2. Ping the new backend engine we just built
-                const res = await fetch(`${backendUrl}/api/ignition_risk?lat=${lat}&lon=${lon}`);
-                const data = await res.json();
-
-                if(data.status === "success") {
-                    // 3. Change ring color based on AI Threat Level
-                    let riskVal = parseFloat(data.ignition_probability);
-                    let color = riskVal >= 75 ? '#ff3b30' : (riskVal >= 50 ? '#ff9f0a' : '#10b981');
-                    
-                    scanRing.setStyle({ color: color, fillColor: color, fillOpacity: 0.2, dashArray: '' });
-                    
-                    // 4. Inject the HUD data
-                    scanRing.setPopupContent(`
+            // 4. Inject the HUD data
+            scanRing.setPopupContent(`
                         <div style="font-family: monospace; font-size: 0.8rem; min-width: 220px; line-height: 1.5;">
                             <b style="color:${color}; font-size: 0.95rem;">PREDICTIVE AI ANALYSIS</b><br><br>
                             🌡️ <span style="color:#a1a1aa;">TEMP:</span> ${data.telemetry.temp_c}°C<br>
@@ -315,404 +671,622 @@
                             🔥 <span style="color:#a1a1aa;">IGNITION PROBABILITY:</span> <b style="font-size:1.1rem; color:${color}">${data.ignition_probability}</b>
                         </div>
                     `);
-                    logAIStream(`Sector scan complete. Ignition risk: ${data.ignition_probability}`);
-                } else {
-                    map.removeLayer(scanRing);
-                    logAIStream(`<span style="color:var(--neon-red)">Scan failed: Atmospheric interference.</span>`);
-                }
-            } catch (err) {
-                map.removeLayer(scanRing);
-                logAIStream(`<span style="color:var(--neon-red)">CRITICAL: Uplink failed during sector scan.</span>`);
-            }
-        });
-
-        let myGlobe = null; // Global variable to hold our 3D instance
-
-        function switchMode(mode) {
-            document.body.className = `view-${mode}`;
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            
-            // Check if the nav button exists before trying to add 'active'
-            const activeBtn = document.getElementById(`btn-${mode}`);
-            if (activeBtn) activeBtn.classList.add('active');
-            
-            const mapEl = document.getElementById('map');
-            const globeEl = document.getElementById('orbital-globe-ui');
-
-            if (mode === 'orbital') {
-                if (mapEl) mapEl.style.display = 'none';
-                if (globeEl) globeEl.style.display = 'block';
-                
-                if (!myGlobe) {
-                    init3DOrbitalCenter();
-                } else {
-                    updateGlobeData();
-                }
-                
-                // 🔒 FIX: Force WebGL to recalculate its center point immediately after displaying
-                setTimeout(() => {
-                    window.dispatchEvent(new Event('resize'));
-                }, 50);
-            } else {
-                // Show 2D map, hide 3D WebGL Globe
-                if (mapEl) mapEl.style.display = 'block';
-                if (globeEl) globeEl.style.display = 'none';
-                
-                if (mode !== 'telemetry') setTimeout(() => map.invalidateSize(), 400);
-                if (mode === 'telemetry') renderCharts(); 
-            }
+            logAIStream(
+              `Sector scan complete. Ignition risk: ${data.ignition_probability}`,
+            );
+          } else {
+            map.removeLayer(scanRing);
+            logAIStream(
+              `<span style="color:var(--neon-red)">Scan failed: Atmospheric interference.</span>`,
+            );
+          }
+        } catch (err) {
+          map.removeLayer(scanRing);
+          logAIStream(
+            `<span style="color:var(--neon-red)">CRITICAL: Uplink failed during sector scan.</span>`,
+          );
         }
+      });
 
-        function logAIStream(message) {
-            const stream = document.getElementById('cyber-stream');
-            const entry = document.createElement('div');
-            const timestamp = new Date().toISOString().split('T')[1].substring(0,8);
-            entry.innerHTML = `<span style="color:var(--neon-cyan)">[${timestamp}]</span> ${message}`;
-            stream.insertBefore(entry, stream.firstChild);
-            if(stream.children.length > 30) stream.removeChild(stream.lastChild);
+      let myGlobe = null; // Global variable to hold our 3D instance
+
+      function switchMode(mode) {
+        document.body.className = `view-${mode}`;
+        document
+          .querySelectorAll(".nav-btn")
+          .forEach((b) => b.classList.remove("active"));
+
+        // Check if the nav button exists before trying to add 'active'
+        const activeBtn = document.getElementById(`btn-${mode}`);
+        if (activeBtn) activeBtn.classList.add("active");
+
+        const mapEl = document.getElementById("map");
+        const globeEl = document.getElementById("orbital-globe-ui");
+
+        if (mode === "orbital") {
+          if (mapEl) mapEl.style.display = "none";
+          if (globeEl) globeEl.style.display = "block";
+
+          if (!myGlobe) {
+            init3DOrbitalCenter();
+          } else {
+            updateGlobeData();
+          }
+
+          // 🔒 FIX: Force WebGL to recalculate its center point immediately after displaying
+          setTimeout(() => {
+            window.dispatchEvent(new Event("resize"));
+          }, 50);
+        } else {
+          // Show 2D map, hide 3D WebGL Globe
+          if (mapEl) mapEl.style.display = "block";
+          if (globeEl) globeEl.style.display = "none";
+
+          if (mode !== "telemetry") setTimeout(() => map.invalidateSize(), 400);
+          if (mode === "telemetry") renderCharts();
         }
+      }
 
-        async function inspectFire(fire) {
-            const startTime = performance.now();
-            map.setView([fire.lat, fire.lon], 9);
-            
-            // Re-bind just in case it was a UI click
-            fire.markerRef.bindPopup(`<b>${fire.title}</b><br><span style='color:var(--neon-cyan);'>Querying multiple orbital APIs...</span>`, { offset: [0, -10] }).openPopup();
+      function logAIStream(message) {
+        const stream = document.getElementById("cyber-stream");
+        const entry = document.createElement("div");
+        const timestamp = new Date()
+          .toISOString()
+          .split("T")[1]
+          .substring(0, 8);
+        entry.innerHTML = `<span style="color:var(--neon-cyan)">[${timestamp}]</span> ${message}`;
+        stream.insertBefore(entry, stream.firstChild);
+        if (stream.children.length > 30) stream.removeChild(stream.lastChild);
+      }
 
-            if (currentWindLine) map.removeLayer(currentWindLine);
-            logAIStream(`Initiated multipoint sensor sweep for: ${fire.lat.toFixed(2)}, ${fire.lon.toFixed(2)}`);
+      async function inspectFire(fire) {
+        const startTime = performance.now();
+        map.setView([fire.lat, fire.lon], 9);
 
-            try {
-                const [resWind, resTerrain, resAQ] = await Promise.all([
-                    fetch(`${backendUrl}/api/wind?lat=${fire.lat}&lon=${fire.lon}`),
-                    fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=0`),
-                    fetch(`${backendUrl}/api/air_quality?lat=${fire.lat}&lon=${fire.lon}`)
-                ]);
+        // Re-bind just in case it was a UI click
+        fire.markerRef
+          .bindPopup(
+            `<b>${fire.title}</b><br><span style='color:var(--neon-cyan);'>Querying multiple orbital APIs...</span>`,
+            { offset: [0, -10] },
+          )
+          .openPopup();
 
-                const wind = await resWind.json();
-                const resTerrainReal = await fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=${wind.direction}`);
-                const terrain = await resTerrainReal.json();
-                const aq = await resAQ.json();
+        if (currentWindLine) map.removeLayer(currentWindLine);
+        logAIStream(
+          `Initiated multipoint sensor sweep for: ${fire.lat.toFixed(2)}, ${fire.lon.toFixed(2)}`,
+        );
 
-                const endTime = performance.now();
-                logAIStream(`Data fused in ${(endTime - startTime).toFixed(0)}ms. Terrain Alt: ${terrain.elevation_meters}m.`);
+        try {
+          const [resWind, resTerrain, resAQ] = await Promise.all([
+            fetch(`${backendUrl}/api/wind?lat=${fire.lat}&lon=${fire.lon}`),
+            fetch(
+              `${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=0`,
+            ),
+            fetch(
+              `${backendUrl}/api/air_quality?lat=${fire.lat}&lon=${fire.lon}`,
+            ),
+          ]);
 
-                let hazardIndex = Math.round(Math.min(wind.speed * 4.5, 50) + Math.min(fire.density_score * 4.0, 50));
-                hazardIndex = Math.min(Math.round(hazardIndex * terrain.spread_multiplier), 100);
+          const wind = await resWind.json();
+          const resTerrainReal = await fetch(
+            `${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=${wind.direction}`,
+          );
+          const terrain = await resTerrainReal.json();
+          const aq = await resAQ.json();
 
-                let threatColor = hazardIndex >= 65 ? "#ff3b30" : (hazardIndex >= 35 ? "#ff9f0a" : "#10b981");
-                const speedKmh = (wind.speed * 3.6).toFixed(1);
-                const projectedSpread = (wind.speed * 0.22 * 24 * terrain.spread_multiplier).toFixed(2);
+          // 🔒 SECURE SAVE: Attach live data directly to the object to prevent HTML string errors
+          fire.liveWind = wind;
+          fire.liveTerrain = terrain;
+          fire.liveAq = aq;
 
-                let aqColor = aq.pm2_5 > 50 ? "#ff3b30" : (aq.pm2_5 > 15 ? "#ff9f0a" : "#10b981");
+          const endTime = performance.now();
+          logAIStream(
+            `Data fused in ${(endTime - startTime).toFixed(0)}ms. Terrain Alt: ${terrain.elevation_meters}m.`,
+          );
 
-                fire.markerRef.setPopupContent(`
+          let hazardIndex = Math.round(
+            Math.min(wind.speed * 4.5, 50) +
+              Math.min(fire.density_score * 4.0, 50),
+          );
+          hazardIndex = Math.min(
+            Math.round(hazardIndex * terrain.spread_multiplier),
+            100,
+          );
+
+          let threatColor =
+            hazardIndex >= 65
+              ? "#ff3b30"
+              : hazardIndex >= 35
+                ? "#ff9f0a"
+                : "#10b981";
+          const speedKmh = (wind.speed * 3.6).toFixed(1);
+          const projectedSpread = (
+            wind.speed *
+            0.22 *
+            24 *
+            terrain.spread_multiplier
+          ).toFixed(2);
+
+          let aqColor =
+            aq.pm2_5 > 50 ? "#ff3b30" : aq.pm2_5 > 15 ? "#ff9f0a" : "#10b981";
+
+          fire.markerRef.setPopupContent(`
                     <div style="font-family: monospace; min-width: 290px; font-size: 0.8rem; line-height: 1.5;">
                         <b style="color: ${threatColor}; font-size: 0.95rem;">${fire.title}</b><br><br>
                         💨 <span style="color:#a1a1aa;">WIND VECTOR:</span> ${speedKmh} km/h @ ${wind.direction}°<br>
                         ⛰️ <span style="color:#a1a1aa;">ALTITUDE:</span> ${terrain.elevation_meters} m<br>
-                        🤖 <span style="color:#a1a1aa;">TERRAIN AI:</span> <b style="color:${terrain.spread_multiplier > 1.2 ? '#ff3b30' : '#00f3ff'}">${terrain.terrain_status}</b><br>
+                        🤖 <span style="color:#a1a1aa;">TERRAIN AI:</span> <b style="color:${terrain.spread_multiplier > 1.2 ? "#ff3b30" : "#00f3ff"}">${terrain.terrain_status}</b><br>
                         ☠️ <span style="color:#a1a1aa;">ATMOSPHERE (PM2.5):</span> <b style="color:${aqColor};">${aq.pm2_5} µg/m³</b><br>
                         📈 <span style="color:#a1a1aa;">24H PROJECTION:</span> ~${projectedSpread} km linear spread<br>
                         📊 <span style="color:#a1a1aa;">HAZARD SCORE:</span> <b style="color:${threatColor};">${hazardIndex} / 100</b>
                         
                         <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
-                            <button onclick="window.deployAirTanker(${fire.lat}, ${fire.lon})" style="width: 100%; padding: 8px; background: rgba(0, 243, 255, 0.1); border: 1px solid #00f3ff; color: #00f3ff; font-family: monospace; font-weight: bold; cursor: pointer; transition: 0.3s;" onmouseover="this.style.background='#00f3ff'; this.style.color='#000';" onmouseout="this.style.background='rgba(0, 243, 255, 0.1)'; this.style.color='#00f3ff';">
-                                🚁 DEPLOY AIR TANKER
+                            <button onclick="event.stopPropagation(); window.calculateSuppressionMetrics(${fire.lat}, ${fire.lon})" style="width: 100%; padding: 8px; background: rgba(0, 243, 255, 0.1); border: 1px solid #00f3ff; color: #00f3ff; font-family: monospace; font-weight: bold; cursor: pointer; transition: 0.3s;" onmouseover="this.style.background='#00f3ff'; this.style.color='#000';" onmouseout="this.style.background='rgba(0, 243, 255, 0.1)'; this.style.color='#00f3ff';">
+                                📊 CALCULATE RESOURCE REQUIREMENTS
                             </button>
                         </div>
                     </div>
                 `);
 
-// (Existing Wind Line Code)
-                const latOffset = (Math.cos(wind.direction * Math.PI / 180) * (wind.speed / 5));
-                const lonOffset = (Math.sin(wind.direction * Math.PI / 180) * (wind.speed / 5));
+          // (Existing Wind Line Code)
+          const latOffset =
+            Math.cos((wind.direction * Math.PI) / 180) * (wind.speed / 5);
+          const lonOffset =
+            Math.sin((wind.direction * Math.PI) / 180) * (wind.speed / 5);
 
-                currentWindLine = L.polyline([[fire.lat, fire.lon], [fire.lat + latOffset, fire.lon + lonOffset]], {
-                    color: threatColor, weight: 4, opacity: 0.9, dashArray: '5, 5'
-                }).addTo(map);
+          currentWindLine = L.polyline(
+            [
+              [fire.lat, fire.lon],
+              [fire.lat + latOffset, fire.lon + lonOffset],
+            ],
+            {
+              color: threatColor,
+              weight: 4,
+              opacity: 0.9,
+              dashArray: "5, 5",
+            },
+          ).addTo(map);
 
-                // 🔥 TRIGGER PHASE 3 TOXIC PLUME (On its own line!)
-                drawToxicPlume(fire.lat, fire.lon, wind.speed * 3.6, wind.direction, aq.pm2_5);
+          // 🔥 TRIGGER PHASE 3 TOXIC PLUME (On its own line!)
+          drawToxicPlume(
+            fire.lat,
+            fire.lon,
+            wind.speed * 3.6,
+            wind.direction,
+            aq.pm2_5,
+          );
+          // 🔥 TRIGGER PHASE 3 TOXIC PLUME
+          drawToxicPlume(fire.lat, fire.lon, wind.speed * 3.6, wind.direction, aq.pm2_5);
+          
+          // 🛣️ TRIGGER PHASE 3 EVACUATION ROUTING
+          calculateEvacuationRoute(fire.lat, fire.lon, wind.direction);
+        } catch (err) {
+          logAIStream(
+            `<span style="color:red">ERROR: Packet loss on coordinates ${fire.lat.toFixed(2)}</span>`,
+          );
+        }
+      }
 
-            } catch (err) { 
-                logAIStream(`<span style="color:red">ERROR: Packet loss on coordinates ${fire.lat.toFixed(2)}</span>`);
-            }
+      // ==========================================
+      // PHASE 3: NASA-STANDARD RESOURCE CALCULATOR
+      // ==========================================
+      window.calculateSuppressionMetrics = function (targetLat, targetLon) {
+        const fire = globalFireData.find(
+          (f) => f.lat === targetLat && f.lon === targetLon,
+        );
+        // Safety check: if data isn't loaded yet, exit cleanly without crashing
+        if (!fire || !fire.liveWind || !fire.liveTerrain || !fire.liveAq) {
+          logAIStream("[ERROR] Telemetry data pending. Re-try in a moment.");
+          return;
         }
 
-        // ==========================================
-        // PHASE 3: ASSET ALLOCATION (AIR TANKER)
-        // ==========================================
-        window.deployAirTanker = function(targetLat, targetLon) {
-            const fire = globalFireData.find(f => f.lat === targetLat && f.lon === targetLon);
-            if (!fire || fire.isDeploying) return; // 🔒 LOCK: Prevents double-clicking
+        const windKmH = fire.liveWind.speed * 3.6;
+        const elevationM = fire.liveTerrain.elevation_meters;
+        const pm25 = fire.liveAq.pm2_5;
 
-            fire.isDeploying = true; // Lock this specific fire
-            logAIStream(`AIR TANKER EN ROUTE: Sector [${targetLat.toFixed(2)}, ${targetLon.toFixed(2)}]`);
+        // 🧮 FIRE BEHAVIOR MATH
+        const estAreaHectares = (fire.density_score * 12.5).toFixed(1);
+        const fireLineIntensity = Math.round(
+          fire.density_score * 350 * (1 + windKmH / 15),
+        );
+        const flameLengthMeters = (
+          0.045 * Math.sqrt(fireLineIntensity)
+        ).toFixed(1);
+        const waterNeededLiters = Math.round(
+          estAreaHectares * 10000 * (flameLengthMeters * 1.5),
+        );
 
-            const baseLat = targetLat - 2.5;
-            const baseLon = targetLon - 2.5;
-
-            // Calculate rotation angle
-            const angle = Math.atan2(targetLon - baseLon, targetLat - baseLat) * (180 / Math.PI);
-
-            const planeIcon = L.divIcon({
-                html: `<div style="font-size: 24px; transform: rotate(${angle}deg);">✈️</div>`,
-                className: 'custom-plane-icon',
-                iconSize: [30, 30]
-            });
-            const plane = L.marker([baseLat, baseLon], { icon: planeIcon }).addTo(map);
-
-            let step = 0;
-            const totalSteps = 100; // Smoother movement
-            const latStep = (targetLat - baseLat) / totalSteps;
-            const lonStep = (targetLon - baseLon) / totalSteps;
-
-            const flightInterval = setInterval(() => {
-                step++;
-                plane.setLatLng([baseLat + (latStep * step), baseLon + (lonStep * step)]);
-                
-                if (step >= totalSteps) {
-                    clearInterval(flightInterval);
-                    map.removeLayer(plane);
-                    executeWaterDrop(fire, targetLat, targetLon);
-                }
-            }, 30);
-        };
-
-        function executeWaterDrop(fire, lat, lon) {
-            logAIStream(`Payload released. Initiating suppression...`);
-            const waterRipple = L.circle([lat, lon], { color: '#00f3ff', weight: 2, radius: 1000 }).addTo(map);
-
-            let rippleStep = 0;
-            const rippleInterval = setInterval(() => {
-                rippleStep++;
-                waterRipple.setRadius(1000 + (rippleStep * 3000));
-                waterRipple.setStyle({ fillOpacity: 0.7 - (rippleStep * 0.05) });
-                
-                if (rippleStep >= 15) {
-                    clearInterval(rippleInterval);
-                    map.removeLayer(waterRipple);
-                    
-                    fire.density_score = Math.max(1, fire.density_score - 4);
-                    fire.isDeploying = false; // Unlock
-                    
-                    // Visual update
-                    let newColor = fire.density_score >= 8 ? '#ff3b30' : (fire.density_score >= 3 ? '#ff9f0a' : '#10b981');
-                    fire.markerRef.setStyle({ fillColor: newColor });
-                    
-                    logAIStream(`<span style="color:var(--neon-green)">SUCCESS: Sector threat level adjusted to ${fire.density_score}.</span>`);
-                    renderThreatMatrix(true);
-                }
-            }, 80);
+        let difficultyRating = "LOW (HAND LINES SUFFICIENT)";
+        let diffColor = "#10b981";
+        if (fireLineIntensity > 4000) {
+          difficultyRating = "EXTREME (AIR ASSETS MANDATORY)";
+          diffColor = "#ff3b30";
+        } else if (fireLineIntensity > 1000) {
+          difficultyRating = "MODERATE (HEAVY MACHINERY REQ)";
+          diffColor = "#ff9f0a";
         }
 
-        function handleSortChange() {
-            currentSortMode = document.getElementById('threat-sort').value;
-            displayedFiresCount = 50; 
+        logAIStream(
+          `[ANALYSIS] Computed suppression matrix for Sector [${targetLat.toFixed(2)}, ${targetLon.toFixed(2)}]`,
+        );
+
+        fire.markerRef.setPopupContent(`
+                <div style="font-family: monospace; min-width: 320px; font-size: 0.8rem; line-height: 1.6; color: #fff;">
+                    <b style="color: #00f3ff; font-size: 0.95rem; display: block; margin-bottom: 4px;">📋 Suppression Engineering Report</b>
+                    <span style="color:#a1a1aa; font-size:0.7rem; display:block; margin-bottom:8px;">Derived from real-time meteorological & thermal data</span>
+                    
+                    <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px;">
+                        📐 <b>Est. Active Front:</b> ~${estAreaHectares} Hectares<br>
+                        🔥 <b>Fireline Intensity:</b> ${fireLineIntensity.toLocaleString()} kW/m<br>
+                        📏 <b>Estimated Flame Height:</b> ${flameLengthMeters} meters
+                    </div>
+
+                    <div style="background: rgba(0, 243, 255, 0.05); padding: 8px; border-radius: 4px; border: 1px solid rgba(0, 243, 255, 0.2); margin-bottom: 8px;">
+                        💧 <b>Required Suppressant Volume:</b><br>
+                        <span style="font-size: 1rem; color: #00f3ff; font-weight: bold;">${waterNeededLiters.toLocaleString()} Liters</span><br>
+                        <span style="color:#a1a1aa; font-size:0.7rem;">(Volume required to break the thermal feedback loop)</span>
+                    </div>
+
+                    <div style="font-size: 0.75rem; padding: 4px 0;">
+                        ⚠️ <b>Tactical Control Index:</b> <b style="color: ${diffColor};">${difficultyRating}</b><br>
+                        ⛰️ <b>Slope/Elevation Factor:</b> ${elevationM}m Above Sea Level
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 8px; margin-bottom: 6px;">
+                    <span style="color: #a1a1aa; font-size: 0.7rem; display: block; text-align: center;">Data remains live. Click map to reset calculation view.</span>
+                </div>
+            `);
+      };
+
+      function executeWaterDrop(fire, lat, lon) {
+        logAIStream(`Payload released. Initiating suppression...`);
+        const waterRipple = L.circle([lat, lon], {
+          color: "#00f3ff",
+          weight: 2,
+          radius: 1000,
+        }).addTo(map);
+
+        let rippleStep = 0;
+        const rippleInterval = setInterval(() => {
+          rippleStep++;
+          waterRipple.setRadius(1000 + rippleStep * 3000);
+          waterRipple.setStyle({ fillOpacity: 0.7 - rippleStep * 0.05 });
+
+          if (rippleStep >= 15) {
+            clearInterval(rippleInterval);
+            map.removeLayer(waterRipple);
+
+            fire.density_score = Math.max(1, fire.density_score - 4);
+            fire.isDeploying = false; // Unlock
+
+            // Visual update
+            let newColor =
+              fire.density_score >= 8
+                ? "#ff3b30"
+                : fire.density_score >= 3
+                  ? "#ff9f0a"
+                  : "#10b981";
+            fire.markerRef.setStyle({ fillColor: newColor });
+
+            logAIStream(
+              `<span style="color:var(--neon-green)">SUCCESS: Sector threat level adjusted to ${fire.density_score}.</span>`,
+            );
             renderThreatMatrix(true);
-        }
+          }
+        }, 80);
+      }
 
-        function renderThreatMatrix(reset = false) {
-            const container = document.getElementById('threat-matrix');
-            if (reset) container.innerHTML = "";
+      function handleSortChange() {
+        currentSortMode = document.getElementById("threat-sort").value;
+        displayedFiresCount = 50;
+        renderThreatMatrix(true);
+      }
 
-            const sortedData = [...globalFireData].sort((a, b) => {
-                return currentSortMode === 'desc' ? b.density_score - a.density_score : a.density_score - b.density_score;
-            });
+      function renderThreatMatrix(reset = false) {
+        const container = document.getElementById("threat-matrix");
+        if (reset) container.innerHTML = "";
 
-            const currentRenderedCount = container.children.length;
-            const toRender = sortedData.slice(currentRenderedCount, displayedFiresCount);
-
-            toRender.forEach(fire => {
-                let markerColor = fire.density_score >= 8 ? '#dc2626' : (fire.density_score >= 3 ? '#d97706' : '#059669');
-                const card = document.createElement('div');
-                card.className = 'threat-card';
-                card.style.background = `rgba(${fire.density_score >= 8 ? '255,59,48' : '255,159,10'}, 0.05)`;
-                card.style.border = `1px solid rgba(${fire.density_score >= 8 ? '255,59,48' : '255,159,10'}, 0.25)`;
-                card.innerHTML = `<div class="threat-title" style="color: ${markerColor}">⚠️ CLUSTER: ${fire.title}</div><div style="font-size: 0.7rem; color: #a1a1aa;">LAT: ${fire.lat.toFixed(2)} | LON: ${fire.lon.toFixed(2)}</div>`;
-                card.onclick = () => {
-                    if(document.body.className !== 'view-tactical') switchMode('tactical');
-                    inspectFire(fire);
-                };
-                container.appendChild(card);
-            });
-        }
-
-        document.getElementById('right-sidebar').addEventListener('scroll', function() {
-            if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
-                if (displayedFiresCount < globalFireData.length) {
-                    displayedFiresCount += 50;
-                    renderThreatMatrix();
-                }
-            }
+        const sortedData = [...globalFireData].sort((a, b) => {
+          return currentSortMode === "desc"
+            ? b.density_score - a.density_score
+            : a.density_score - b.density_score;
         });
 
-        async function initializeCommandCenter() {
-            try {
-                logAIStream("Booting Main Terminal. Establishing NASA EONET uplink...");
-                
-                const [fireRes, satRes] = await Promise.all([
-                    fetch(`${backendUrl}/api/fires`),
-                    fetch(`${backendUrl}/api/satellites`)
-                ]);
-                
-                const data = await fireRes.json();
-                const satData = await satRes.json();
+        const currentRenderedCount = container.children.length;
+        const toRender = sortedData.slice(
+          currentRenderedCount,
+          displayedFiresCount,
+        );
 
-                const satContainer = document.querySelector('.satellite-row').parentElement;
-                satContainer.innerHTML = ""; 
-                if(satData.instruments) {
-                    satData.instruments.forEach(inst => {
-                        satContainer.innerHTML += `<div class="satellite-row"><span>${inst.toUpperCase()}</span><span style="color:var(--neon-green)">SYNCED</span></div>`;
-                    });
-                }
+        toRender.forEach((fire) => {
+          let markerColor =
+            fire.density_score >= 8
+              ? "#dc2626"
+              : fire.density_score >= 3
+                ? "#d97706"
+                : "#059669";
+          const card = document.createElement("div");
+          card.className = "threat-card";
+          card.style.background = `rgba(${fire.density_score >= 8 ? "255,59,48" : "255,159,10"}, 0.05)`;
+          card.style.border = `1px solid rgba(${fire.density_score >= 8 ? "255,59,48" : "255,159,10"}, 0.25)`;
+          card.innerHTML = `<div class="threat-title" style="color: ${markerColor}">⚠️ CLUSTER: ${fire.title}</div><div style="font-size: 0.7rem; color: #a1a1aa;">LAT: ${fire.lat.toFixed(2)} | LON: ${fire.lon.toFixed(2)}</div>`;
+          card.onclick = () => {
+            if (document.body.className !== "view-tactical")
+              switchMode("tactical");
+            inspectFire(fire);
+          };
+          container.appendChild(card);
+        });
+      }
 
-                if (data.status === "success") {
-                    document.getElementById('total-fires').innerText = data.total_global;
-                    document.getElementById('kpi-carbon').innerText = (data.total_global * 0.14).toFixed(2) + " MT";
-                    
-                    let highRiskCount = 0;
-                    const tableBody = document.getElementById('table-body-matrix');
-                    tableBody.innerHTML = "";
+      document
+        .getElementById("right-sidebar")
+        .addEventListener("scroll", function () {
+          if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
+            if (displayedFiresCount < globalFireData.length) {
+              displayedFiresCount += 50;
+              renderThreatMatrix();
+            }
+          }
+        });
 
-                    globalFireData = data.fires.map((fire, index) => {
-                        if (fire.density_score >= 8) highRiskCount++;
-                        let markerColor = fire.density_score >= 8 ? '#dc2626' : (fire.density_score >= 3 ? '#d97706' : '#059669');
-                        
-                        const marker = L.circleMarker([fire.lat, fire.lon], {
-                            radius: fire.density_score >= 8 ? 7 : (fire.density_score >= 3 ? 5 : 4),
-                            color: 'transparent', weight: 15, fillColor: markerColor, fillOpacity: 0.8
-                        }).addTo(map);
+      async function initializeCommandCenter() {
+        try {
+          logAIStream(
+            "Booting Main Terminal. Establishing NASA EONET uplink...",
+          );
 
-                        fire.markerRef = marker;
-                        
-                        // 🔒 FIX: Prevent fire marker clicks from leaking into map radar clicks
-                        marker.on('click', function(e) {
-                            L.DomEvent.stopPropagation(e); 
-                            inspectFire(fire);
-                        });
+          const [fireRes, satRes] = await Promise.all([
+            fetch(`${backendUrl}/api/fires`),
+            fetch(`${backendUrl}/api/satellites`),
+          ]);
 
-                        if (index < 10) {
-                            const row = document.createElement('tr');
-                            row.style.borderBottom = "1px solid rgba(255,255,255,0.03)";
-                            let flagColor = fire.density_score >= 8 ? "var(--neon-red)" : (fire.density_score >= 3 ? "var(--neon-amber)" : "var(--neon-green)");
-                            let flagText = fire.density_score >= 8 ? "CRITICAL OUTBREAK" : (fire.density_score >= 3 ? "ELEVATED THREAT" : "MONITORED");
-                            
-                            row.innerHTML = `
+          const data = await fireRes.json();
+          const satData = await satRes.json();
+
+          const satContainer =
+            document.querySelector(".satellite-row").parentElement;
+          satContainer.innerHTML = "";
+          if (satData.instruments) {
+            satData.instruments.forEach((inst) => {
+              satContainer.innerHTML += `<div class="satellite-row"><span>${inst.toUpperCase()}</span><span style="color:var(--neon-green)">SYNCED</span></div>`;
+            });
+          }
+
+          if (data.status === "success") {
+            document.getElementById("total-fires").innerText =
+              data.total_global;
+            document.getElementById("kpi-carbon").innerText =
+              (data.total_global * 0.14).toFixed(2) + " MT";
+
+            let highRiskCount = 0;
+            const tableBody = document.getElementById("table-body-matrix");
+            tableBody.innerHTML = "";
+
+            globalFireData = data.fires.map((fire, index) => {
+              if (fire.density_score >= 8) highRiskCount++;
+              let markerColor =
+                fire.density_score >= 8
+                  ? "#dc2626"
+                  : fire.density_score >= 3
+                    ? "#d97706"
+                    : "#059669";
+
+              const marker = L.circleMarker([fire.lat, fire.lon], {
+                radius:
+                  fire.density_score >= 8 ? 7 : fire.density_score >= 3 ? 5 : 4,
+                color: "transparent",
+                weight: 15,
+                fillColor: markerColor,
+                fillOpacity: 0.8,
+              }).addTo(map);
+
+              fire.markerRef = marker;
+
+              // 🔒 FIX: Prevent fire marker clicks from leaking into map radar clicks
+              marker.on("click", function (e) {
+                L.DomEvent.stopPropagation(e);
+                inspectFire(fire);
+              });
+
+              if (index < 10) {
+                const row = document.createElement("tr");
+                row.style.borderBottom = "1px solid rgba(255,255,255,0.03)";
+                let flagColor =
+                  fire.density_score >= 8
+                    ? "var(--neon-red)"
+                    : fire.density_score >= 3
+                      ? "var(--neon-amber)"
+                      : "var(--neon-green)";
+                let flagText =
+                  fire.density_score >= 8
+                    ? "CRITICAL OUTBREAK"
+                    : fire.density_score >= 3
+                      ? "ELEVATED THREAT"
+                      : "MONITORED";
+
+                row.innerHTML = `
                                 <td style="padding: 10px 5px; color:#fff; font-weight:bold;">${fire.title}</td>
                                 <td>${fire.lat.toFixed(4)}</td>
                                 <td>${fire.lon.toFixed(4)}</td>
                                 <td style="color:var(--neon-cyan); font-weight:bold;">Tier ${fire.density_score}</td>
                                 <td style="color:${flagColor}; font-weight:bold;">${flagText}</td>
                             `;
-                            tableBody.appendChild(row);
-                        }
+                tableBody.appendChild(row);
+              }
 
-                        return fire;
-                    });
+              return fire;
+            });
 
-                    renderThreatMatrix(true);
+            renderThreatMatrix(true);
 
-                    document.getElementById('kpi-critical').innerText = highRiskCount;
-                    document.getElementById('kpi-risk').innerText = ((highRiskCount / data.total_global) * 100).toFixed(1) + "%";
-                    logAIStream(`Uplink processed ${data.total_global} total thermal events successfully.`);
-                }
-            } catch (error) { 
-                logAIStream(`<span style="color:red">CRITICAL SYSTEM FAILURE: Cannot reach backend.</span>`);
-            }
+            document.getElementById("kpi-critical").innerText = highRiskCount;
+            document.getElementById("kpi-risk").innerText =
+              ((highRiskCount / data.total_global) * 100).toFixed(1) + "%";
+            logAIStream(
+              `Uplink processed ${data.total_global} total thermal events successfully.`,
+            );
+          }
+        } catch (error) {
+          logAIStream(
+            `<span style="color:red">CRITICAL SYSTEM FAILURE: Cannot reach backend.</span>`,
+          );
         }
+      }
 
-        let threatChartInstance = null;
-        let carbonChartInstance = null;
+      let threatChartInstance = null;
+      let carbonChartInstance = null;
 
-        function renderCharts() {
-            if (!globalFireData.length) return;
-            logAIStream(`Generating planetary Threat Matrix rendering...`);
+      function renderCharts() {
+        if (!globalFireData.length) return;
+        logAIStream(`Generating planetary Threat Matrix rendering...`);
 
-            let lowRisk = 0, medRisk = 0, highRisk = 0;
-            globalFireData.forEach(f => {
-                if (f.density_score >= 8) highRisk++;
-                else if (f.density_score >= 3) medRisk++;
-                else lowRisk++;
-            });
+        let lowRisk = 0,
+          medRisk = 0,
+          highRisk = 0;
+        globalFireData.forEach((f) => {
+          if (f.density_score >= 8) highRisk++;
+          else if (f.density_score >= 3) medRisk++;
+          else lowRisk++;
+        });
 
-            const ctxThreat = document.getElementById('threatChart').getContext('2d');
-            if (threatChartInstance) threatChartInstance.destroy();
-            threatChartInstance = new Chart(ctxThreat, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Critical Outbreaks', 'Elevated Clusters', 'Routine/Isolated'],
-                    datasets: [{
-                        data: [highRisk, medRisk, lowRisk],
-                        backgroundColor: ['#ff3b30', '#ff9f0a', '#10b981'],
-                        borderWidth: 0, hoverOffset: 4
-                    }]
+        const ctxThreat = document
+          .getElementById("threatChart")
+          .getContext("2d");
+        if (threatChartInstance) threatChartInstance.destroy();
+        threatChartInstance = new Chart(ctxThreat, {
+          type: "doughnut",
+          data: {
+            labels: [
+              "Critical Outbreaks",
+              "Elevated Clusters",
+              "Routine/Isolated",
+            ],
+            datasets: [
+              {
+                data: [highRisk, medRisk, lowRisk],
+                backgroundColor: ["#ff3b30", "#ff9f0a", "#10b981"],
+                borderWidth: 0,
+                hoverOffset: 4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  color: "#d1d5db",
+                  font: { family: "monospace", size: 10 },
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#d1d5db', font: { family: 'monospace', size: 10 } } } } }
-            });
+              },
+            },
+          },
+        });
 
-            const ctxCarbon = document.getElementById('carbonChart').getContext('2d');
-            if (carbonChartInstance) carbonChartInstance.destroy();
-            
-            const baseCarbon = (globalFireData.length * 0.14);
-            const pastData = [baseCarbon*0.82, baseCarbon*0.88, baseCarbon*0.91, baseCarbon*0.85, baseCarbon*0.96, baseCarbon*0.98, baseCarbon];
+        const ctxCarbon = document
+          .getElementById("carbonChart")
+          .getContext("2d");
+        if (carbonChartInstance) carbonChartInstance.destroy();
 
-            carbonChartInstance = new Chart(ctxCarbon, {
-                type: 'line',
-                data: {
-                    labels: ['T-6D', 'T-5D', 'T-4D', 'T-3D', 'T-2D', 'T-1D', 'LAUNCH'],
-                    datasets: [{
-                        label: 'Carbon Injection',
-                        data: pastData,
-                        borderColor: '#00f3ff', backgroundColor: 'rgba(0, 243, 255, 0.05)',
-                        borderWidth: 2, fill: true, tension: 0.3, pointRadius: 2
-                    }]
+        const baseCarbon = globalFireData.length * 0.14;
+        const pastData = [
+          baseCarbon * 0.82,
+          baseCarbon * 0.88,
+          baseCarbon * 0.91,
+          baseCarbon * 0.85,
+          baseCarbon * 0.96,
+          baseCarbon * 0.98,
+          baseCarbon,
+        ];
+
+        carbonChartInstance = new Chart(ctxCarbon, {
+          type: "line",
+          data: {
+            labels: ["T-6D", "T-5D", "T-4D", "T-3D", "T-2D", "T-1D", "LAUNCH"],
+            datasets: [
+              {
+                label: "Carbon Injection",
+                data: pastData,
+                borderColor: "#00f3ff",
+                backgroundColor: "rgba(0, 243, 255, 0.05)",
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                grid: { color: "rgba(255,255,255,0.02)" },
+                ticks: { color: "#6b7280", font: { family: "monospace" } },
+              },
+              y: {
+                grid: { color: "rgba(255,255,255,0.02)" },
+                ticks: { color: "#6b7280", font: { family: "monospace" } },
+              },
+            },
+            plugins: {
+              legend: {
+                labels: {
+                  color: "#d1d5db",
+                  font: { family: "monospace", size: 10 },
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#6b7280', font: { family: 'monospace' } } }, y: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#6b7280', font: { family: 'monospace' } } } }, plugins: { legend: { labels: { color: '#d1d5db', font: { family: 'monospace', size: 10 } } } } }
-            });
-        }
+              },
+            },
+          },
+        });
+      }
 
-        initializeCommandCenter();
+      initializeCommandCenter();
 
-        async function runGlobalProactiveScan() {
-            logAIStream("Initializing Global Proactive Scanning Matrix...");
-            
-            for (const hotspot of AI_HOTSPOTS) {
-                try {
-                    logAIStream(`Matrix polling atmospheric telemetry for ${hotspot.name}...`);
-                    
-                    const res = await fetch(`${backendUrl}/api/ignition_risk?lat=${hotspot.lat}&lon=${hotspot.lon}`);
-                    const data = await res.json();
-                    
-                    if (data.status === "success") {
-                        let riskVal = parseFloat(data.ignition_probability);
-                        
-                        if (riskVal > 30) {
-                            let color = riskVal >= 75 ? '#ff3b30' : '#ff9f0a';
-                            
-                            // 🌍 Custom regional zone size expanded for macro-monitoring
-                            const zone = L.circle([hotspot.lat, hotspot.lon], {
-                                color: color,
-                                weight: 1,
-                                fillColor: color,
-                                fillOpacity: 0.15,
-                                radius: 150000 
-                            }).addTo(map);
+      async function runGlobalProactiveScan() {
+        logAIStream("Initializing Global Proactive Scanning Matrix...");
 
-                            let growing = true;
-                            setInterval(() => {
-                                let currentOpacity = zone.options.fillOpacity;
-                                if (growing) {
-                                    zone.setStyle({ fillOpacity: currentOpacity + 0.02 });
-                                    if (zone.options.fillOpacity >= 0.3) growing = false;
-                                } else {
-                                    zone.setStyle({ fillOpacity: currentOpacity - 0.02 });
-                                    if (zone.options.fillOpacity <= 0.1) growing = true;
-                                }
-                            }, 150);
+        for (const hotspot of AI_HOTSPOTS) {
+          try {
+            logAIStream(
+              `Matrix polling atmospheric telemetry for ${hotspot.name}...`,
+            );
 
-                            zone.bindPopup(`
+            const res = await fetch(
+              `${backendUrl}/api/ignition_risk?lat=${hotspot.lat}&lon=${hotspot.lon}`,
+            );
+            const data = await res.json();
+
+            if (data.status === "success") {
+              let riskVal = parseFloat(data.ignition_probability);
+
+              if (riskVal > 30) {
+                let color = riskVal >= 75 ? "#ff3b30" : "#ff9f0a";
+
+                // 🌍 Custom regional zone size expanded for macro-monitoring
+                const zone = L.circle([hotspot.lat, hotspot.lon], {
+                  color: color,
+                  weight: 1,
+                  fillColor: color,
+                  fillOpacity: 0.15,
+                  radius: 150000,
+                }).addTo(map);
+
+                let growing = true;
+                setInterval(() => {
+                  let currentOpacity = zone.options.fillOpacity;
+                  if (growing) {
+                    zone.setStyle({ fillOpacity: currentOpacity + 0.02 });
+                    if (zone.options.fillOpacity >= 0.3) growing = false;
+                  } else {
+                    zone.setStyle({ fillOpacity: currentOpacity - 0.02 });
+                    if (zone.options.fillOpacity <= 0.1) growing = true;
+                  }
+                }, 150);
+
+                zone.bindPopup(`
                                 <div style="font-family: monospace; font-size: 0.8rem; line-height: 1.4;">
                                     <b style="color:${color};">AUTOMATED AI ALERT</b><br>
                                     <b>REGION:</b> ${hotspot.name}<br>
@@ -720,102 +1294,406 @@
                                     <b>AI STATUS:</b> ${data.ai_status}
                                 </div>
                             `);
-                        }
-                    }
-                } catch (err) {
-                    console.error(`Proactive scan failed for ${hotspot.name}`, err);
-                }
-                
-                await new Promise(resolve => setTimeout(resolve, 1500));
+              }
             }
-            logAIStream("<span style='color:var(--neon-green)'>Global Proactive Scan Matrix fully deployed.</span>");
+          } catch (err) {
+            console.error(`Proactive scan failed for ${hotspot.name}`, err);
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 1500));
         }
+        logAIStream(
+          "<span style='color:var(--neon-green)'>Global Proactive Scan Matrix fully deployed.</span>",
+        );
+      }
 
-        setTimeout(runGlobalProactiveScan, 5000);
+      setTimeout(runGlobalProactiveScan, 5000);
 
-// 🔥 PHASE 2: ADVANCED ORBITAL COMMAND CENTER (HIGH PERFORMANCE) 🔥
-        function init3DOrbitalCenter() {
-            logAIStream("Initializing 3D Orbital Matrix with Real-Time Solar Shading...");
-            const container = document.getElementById('orbital-globe-ui');
-            if (!container) return;
+      // 🔥 PHASE 2: ADVANCED ORBITAL COMMAND CENTER (HIGH PERFORMANCE) 🔥
+      function init3DOrbitalCenter() {
+        logAIStream(
+          "Initializing 3D Orbital Matrix with Real-Time Solar Shading...",
+        );
+        const container = document.getElementById("orbital-globe-ui");
+        if (!container) return;
 
-            // 1. Initialize the Globe Engine
-            myGlobe = Globe()(container)
-                // High-resolution satellite imagery optimized for fast WebGL rendering
-                .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg') 
-                .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
-                .backgroundColor('#020205') 
-                .showAtmosphere(true)
-                .atmosphereColor('#00f3ff') 
-                .atmosphereAltitude(0.18) 
-                
-                // 2. Base Configuration for Fire Pillars
-                .pointLat('lat')
-                .pointLng('lon')
-                .pointColor(d => d.density_score >= 8 ? '#ff3b30' : (d.density_score >= 3 ? '#ff9f0a' : '#10b981'))
-                .pointAltitude(d => Math.min(d.density_score * 0.04, 0.3)) 
-                .pointRadius(0.22) 
-                .pointsTransitionDuration(1000)
-                
-                // 3. Special Effects Layer for Top Critical Outbreaks (Pulsing Heat Wave Rings)
-                .ringLat('lat')
-                .ringLng('lon')
-                .ringColor(() => '#ff3b30')
-                .ringMaxRadius(d => Math.min(d.density_score * 0.8, 4.0)) // Expansion size based on threat
-                .ringPropagationSpeed(1.5) // Speed of expanding wave
-                .ringRepeatPeriod(1200) // Pulse frequency
-                
-                // 4. Interactive HUD Tooltips
-                .pointLabel(d => `
+        // 1. Initialize the Globe Engine
+        myGlobe = Globe()(container)
+          // High-resolution satellite imagery optimized for fast WebGL rendering
+          .globeImageUrl(
+            "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg",
+          )
+          .bumpImageUrl(
+            "//unpkg.com/three-globe/example/img/earth-topology.png",
+          )
+          .backgroundColor("#020205")
+          .showAtmosphere(true)
+          .atmosphereColor("#00f3ff")
+          .atmosphereAltitude(0.18)
+
+          // 2. Base Configuration for Fire Pillars
+          .pointLat("lat")
+          .pointLng("lon")
+          .pointColor((d) =>
+            d.density_score >= 8
+              ? "#ff3b30"
+              : d.density_score >= 3
+                ? "#ff9f0a"
+                : "#10b981",
+          )
+          .pointAltitude((d) => Math.min(d.density_score * 0.04, 0.3))
+          .pointRadius(0.22)
+          .pointsTransitionDuration(1000)
+
+          // 3. Special Effects Layer for Top Critical Outbreaks (Pulsing Heat Wave Rings)
+          .ringLat("lat")
+          .ringLng("lon")
+          .ringColor(() => "#ff3b30")
+          .ringMaxRadius((d) => Math.min(d.density_score * 0.8, 4.0)) // Expansion size based on threat
+          .ringPropagationSpeed(1.5) // Speed of expanding wave
+          .ringRepeatPeriod(1200) // Pulse frequency
+
+          // 4. Interactive HUD Tooltips
+          .pointLabel(
+            (d) => `
                     <div style="background: rgba(2,2,5,0.9); padding: 8px; border: 1px solid #00f3ff; border-radius: 4px; font-family: monospace; font-size:0.75rem; color:#fff; box-shadow: 0 0 10px rgba(0,243,255,0.3);">
                         <b style="color:#ff3b30;">🚨 WARNING: CLUSTER OUTBREAK</b><br>
                         <span style="color:#a1a1aa;">Sector:</span> ${d.title}<br>
                         <span style="color:#a1a1aa;">Threat Level:</span> <b style="color:#ff9f0a;">Tier ${d.density_score}</b>
                     </div>
-                `)
-                .onPointClick(fire => {
-                    logAIStream(`Orbital focus shifted to sector: ${fire.title}`);
-                    switchMode('tactical');
-                    inspectFire(fire);
-                });
+                `,
+          )
+          .onPointClick((fire) => {
+            logAIStream(`Orbital focus shifted to sector: ${fire.title}`);
+            switchMode("tactical");
+            inspectFire(fire);
+          });
 
-            // 5. Inject Custom Three.js Sun Lighting (Dynamic Shadow & Terminator Line)
-            const scene = myGlobe.scene();
+        // 5. Inject Custom Three.js Sun Lighting (Dynamic Shadow & Terminator Line)
+        const scene = myGlobe.scene();
+
+        // Remove standard ambient lighting to allow dark shadows
+        const existingLights = scene.children.filter((c) => c.isLight);
+        existingLights.forEach((light) => scene.remove(light));
+
+        // Add subtle ambient light so the night side isn't entirely pitch black
+        const spaceAmbient = new THREE.AmbientLight(0x0a0a15);
+        scene.add(spaceAmbient);
+
+        // Add a powerful solar directional light source to create the sharp Day/Night terminator line
+        const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        // Position the sun sharply off to the upper-left side of space
+        sunLight.position.set(-150, 80, 100);
+        scene.add(sunLight);
+
+        // Keep user manual navigation active and lag-free
+        myGlobe.controls().autoRotate = false;
+        myGlobe.pointOfView({ altitude: 2.2 });
+
+        // Feed and execute data binding
+        updateGlobeData();
+        logAIStream(
+          "<span style='color:var(--neon-green)'>3D Solar Shading & Heat Signature Matrix fully operational.</span>",
+        );
+      }
+
+      function updateGlobeData() {
+        if (!myGlobe || !globalFireData.length) return;
+
+        // Render all thermal data events as standard pillars
+        myGlobe.pointsData(globalFireData);
+
+        // ISOLATE TOP OUTBREAKS: Filter down to the most critical fires (Tier 8+)
+        // and feed them exclusively into the hardware-accelerated rings generator
+        const topCriticalOutbreaks = globalFireData.filter(
+          (fire) => fire.density_score >= 8,
+        );
+        myGlobe.ringsData(topCriticalOutbreaks);
+      }
+      // ==========================================
+        // PHASE 3: DYNAMIC SAFE EVACUATION ROUTING
+        // ==========================================
+        let currentEvacRoute = null;
+
+        async function calculateEvacuationRoute(lat, lon, windDir) {
+            if (currentEvacRoute) map.removeLayer(currentEvacRoute);
+            logAIStream(`[LOGISTICS] Computing safe civilian evacuation corridors...`);
+
+            // To escape a fire, you evacuate perpendicular to or against the wind.
+            // We calculate a safe zone coordinate ~15km away in the safest direction.
+            const safeAngle = (windDir + 180) % 360; // Directly against the wind
+            const safeLat = lat + (Math.cos(safeAngle * Math.PI / 180) * 0.15);
+            const safeLon = lon + (Math.sin(safeAngle * Math.PI / 180) * 0.15);
+
+            // Fetch real road data using Open Source Routing Machine (OSRM)
+            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${lon},${lat};${safeLon},${safeLat}?geometries=geojson`;
             
-            // Remove standard ambient lighting to allow dark shadows
-            const existingLights = scene.children.filter(c => c.isLight);
-            existingLights.forEach(light => scene.remove(light));
+            try {
+                const res = await fetch(osrmUrl);
+                const data = await res.json();
 
-            // Add subtle ambient light so the night side isn't entirely pitch black
-            const spaceAmbient = new THREE.AmbientLight(0x0a0a15);
-            scene.add(spaceAmbient);
+                if (data.routes && data.routes.length > 0) {
+                    const routeGeoJSON = data.routes[0].geometry;
+                    
+                    currentEvacRoute = L.geoJSON(routeGeoJSON, {
+                        style: { color: '#10b981', weight: 5, opacity: 0.8, dashArray: '10, 10' }
+                    }).addTo(map);
 
-            // Add a powerful solar directional light source to create the sharp Day/Night terminator line
-            const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
-            // Position the sun sharply off to the upper-left side of space
-            sunLight.position.set(-150, 80, 100); 
-            scene.add(sunLight);
-
-            // Keep user manual navigation active and lag-free
-            myGlobe.controls().autoRotate = false;
-            myGlobe.pointOfView({ altitude: 2.2 });
-
-            // Feed and execute data binding
-            updateGlobeData();
-            logAIStream("<span style='color:var(--neon-green)'>3D Solar Shading & Heat Signature Matrix fully operational.</span>");
+                    currentEvacRoute.bindPopup(`
+                        <div style="font-family: monospace; font-size: 0.8rem; color:#10b981;">
+                            <b>✅ SECURE EVACUATION CORRIDOR</b><br>
+                            Est. Distance: ${(data.routes[0].distance / 1000).toFixed(1)} km<br>
+                            Routing away from active wind vector.
+                        </div>
+                    `).openPopup();
+                } else {
+                    logAIStream(`<span style="color:var(--neon-amber)">[WARNING] No viable road networks found for standard vehicle evacuation.</span>`);
+                }
+            } catch (error) {
+                console.log("Routing error", error);
+            }
         }
 
-        function updateGlobeData() {
-            if (!myGlobe || !globalFireData.length) return;
+        // ==========================================
+        // PHASE 5: GROUND TRUTH CROWDSOURCING
+        // ==========================================
+        
+        // 1. Inject the Mobile-First Report Button into the DOM
+        const reportBtn = document.createElement('button');
+        reportBtn.innerHTML = "⚠️ UPLOAD GROUND TRUTH";
+        Object.assign(reportBtn.style, {
+            position: 'absolute', bottom: '25px', left: '50%', transform: 'translateX(-50%)',
+            zIndex: 2000, background: 'rgba(255, 59, 48, 0.9)', color: '#fff', border: '1px solid #ff3b30',
+            padding: '12px 24px', borderRadius: '30px', fontFamily: 'monospace', fontWeight: 'bold',
+            cursor: 'pointer', boxShadow: '0 0 15px rgba(255,59,48,0.4)'
+        });
+        document.body.appendChild(reportBtn);
+
+        // 2. Report Modal Logic
+        reportBtn.onclick = () => {
+            const modal = document.createElement('div');
+            Object.assign(modal.style, {
+                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                background: 'rgba(10, 15, 24, 0.95)', border: '1px solid #00f3ff', padding: '25px',
+                zIndex: 3000, borderRadius: '8px', color: '#fff', fontFamily: 'monospace', width: '320px'
+            });
+
+            modal.innerHTML = `
+                <h3 style="color:#00f3ff; margin-top:0;">📡 GROUND TRUTH UPLINK</h3>
+                <p style="font-size:0.8rem; color:#a1a1aa;">Submit localized data to update planetary models.</p>
+                
+                <label style="font-size:0.75rem;">Incident Type:</label>
+                <select style="width:100%; margin: 5px 0 15px 0; background:#000; color:#00f3ff; border:1px solid rgba(0,243,255,0.3); padding:5px;">
+                    <option>Visual Smoke Confirmation</option>
+                    <option>Road Blocked / Impassable</option>
+                    <option>Asset Deployed</option>
+                </select>
+
+                <label style="font-size:0.75rem;">Upload Visual Evidence (AI Verified):</label>
+                <input type="file" accept="image/*" style="width:100%; margin: 5px 0 15px 0; font-size:0.7rem;">
+
+                <button id="submit-truth" style="width:100%; padding:8px; background:#10b981; border:none; color:#000; font-weight:bold; cursor:pointer;">TRANSMIT TO ORBIT</button>
+                <button id="close-modal" style="width:100%; padding:8px; background:transparent; border:none; color:#a1a1aa; margin-top:5px; cursor:pointer;">CANCEL</button>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('close-modal').onclick = () => document.body.removeChild(modal);
             
-            // Render all thermal data events as standard pillars
-            myGlobe.pointsData(globalFireData);
-            
-            // ISOLATE TOP OUTBREAKS: Filter down to the most critical fires (Tier 8+) 
-            // and feed them exclusively into the hardware-accelerated rings generator
-            const topCriticalOutbreaks = globalFireData.filter(fire => fire.density_score >= 8);
-            myGlobe.ringsData(topCriticalOutbreaks);
-        }
+// 3. SECURE API VERIFICATION LINK
+            document.getElementById('submit-truth').onclick = async () => {
+                const fileInput = document.querySelector('input[type="file"]');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert("Please select a raw data image first.");
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                document.body.removeChild(modal); 
+                
+                logAIStream(`<span style="color:#10b981">[GROUND TRUTH] Ingesting payload. Uplinking to secure proxy node...</span>`);
+
+                try {
+                    const fileData = await file.arrayBuffer();
+
+                    // Ping your own backend server instead of Hugging Face directly
+                    const response = await fetch(`${backendUrl}/api/verify_image`, {
+                        method: "POST",
+                        body: fileData
+                    });
+
+                    const result = await response.json();
+                    let isVerified = false;
+                    
+                    if (Array.isArray(result)) {
+                        for (const item of result) {
+                            if (item.label.includes("smoke") || item.label.includes("fire") || item.label.includes("ash")) {
+                                isVerified = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (isVerified) {
+                        logAIStream(`<span style="color:#00f3ff">[VERIFIED] Upstream Neural Net confirmed active fire/smoke signatures.</span>`);
+                    } else {
+                        logAIStream(`<span style="color:var(--neon-amber)">[REJECTED] Payload analyzed. Signatures do not match combustion profile.</span>`);
+                    }
+
+                } catch (error) {
+                    console.error("AI Error:", error);
+                    logAIStream(`<span style="color:var(--neon-red)">[ERROR] Secure proxy handshake timed out.</span>`);
+                }
+            };
+        };
+        // =========================================================================
+// PHASE 7: MULTI-THREADED WEB WORKER (ZERO-LAG PARSING ARCHITECTURE)
+// =========================================================================
+
+ // This blob compiles an isolated background CPU thread to crunch raw JSON telemetry 
+ // without blocking the main browser UI thread (Maintains 60 FPS under extreme load).
+ const workerCode = `
+     self.onmessage = function(e) {
+         const { action, rawData } = e.data;
+
+         if (action === 'parse_earthquakes') {
+             // Extract hyper-centric hypocenter data
+             const parsed = rawData.features.map(f => ({
+                 lat: f.geometry.coordinates[1],
+                 lon: f.geometry.coordinates[0],
+                 depth: f.geometry.coordinates[2],
+                 mag: f.properties.mag,
+                 title: f.properties.title
+             }));
+             self.postMessage({ action: 'earthquakes_done', data: parsed });
+         }
+
+         if (action === 'parse_firms') {
+             // Compress raw radiometry arrays into optimized float dictionaries
+             const parsed = rawData.data.map(p => ({
+                 lat: parseFloat(p.lat),
+                 lon: parseFloat(p.lon),
+                 frp: parseFloat(p.frp),
+                 temp: parseFloat(p.brightness)
+             }));
+             self.postMessage({ action: 'firms_done', data: parsed });
+         }
+     };
+ `;
+
+ const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+ const analyticsWorker = new Worker(URL.createObjectURL(workerBlob));
+
+ // Background Thread Listener
+ analyticsWorker.onmessage = function(e) {
+     const { action, data } = e.data;
+
+     if (action === 'earthquakes_done') {
+         data.forEach(quake => {
+             let eqColor = quake.mag > 6.0 ? '#ff3b30' : '#ff9f0a';
+             const marker = L.circle([quake.lat, quake.lon], {
+                 color: eqColor, weight: 2, fillColor: eqColor, fillOpacity: 0.3,
+                 radius: quake.mag * 12000 // Scale visual shockwave
+             });
+             marker.bindPopup(`
+                 <div style="font-family: monospace; font-size:0.8rem; color:#fff;">
+                     <b style="color:${eqColor}">💥 LITHOSPHERIC FRACTURE DETECTED</b><br>
+                     ${quake.title}<br>
+                     📏 <b>Magnitude:</b> ${quake.mag} M<br>
+                     🕳️ <b>Hypocenter Depth:</b> ${quake.depth} km
+                 </div>
+             `);
+             lithosphereLayer.addLayer(marker);
+         });
+         lithosphereLayer.addTo(map);
+         logAIStream(`<span style="color:#ff9f0a">[SEISMIC] Background thread parsed ${data.length} global fractures. UI synchronized.</span>`);
+     }
+
+     if (action === 'firms_done') {
+         data.forEach(pt => {
+             const marker = L.circle([pt.lat, pt.lon], {
+                 color: 'transparent', weight: 0, fillColor: '#00f3ff', fillOpacity: 0.6, radius: 2500
+             });
+             marker.bindPopup(`
+                 <div style="font-family: monospace; font-size:0.8rem; color:#fff;">
+                     <b style="color:#00f3ff">🛰️ RAW SPECTRAL RADIOMETRY</b><br>
+                     🔥 <b>Fire Radiative Power (FRP):</b> ${pt.frp} MW<br>
+                     🌡️ <b>Brightness Temp:</b> ${pt.temp} K
+                 </div>
+             `);
+             firmsRadiometryLayer.addLayer(marker);
+         });
+         firmsRadiometryLayer.addTo(map);
+         logAIStream(`<span style="color:#00f3ff">[RADIOMETRY] NASA MODAPS spectral array applied. High-res thermal matrix online.</span>`);
+     }
+ };
+
+ // ==========================================
+ // PHASE 6 & 8: HAZARD TOGGLE FUNCTIONS
+ // ==========================================
+
+ window.toggleLithosphere = async function(isActive) {
+     lithosphereLayer.clearLayers();
+     if (!isActive) {
+         map.removeLayer(lithosphereLayer);
+         return;
+     }
+     logAIStream(`[UPLINK] Querying USGS Real-Time Seismic Database...`);
+     try {
+         const res = await fetch(`${backendUrl}/api/earthquakes`);
+         const geojson = await res.json();
+         // Send massive JSON payload to Web Worker to avoid freezing the browser
+         analyticsWorker.postMessage({ action: 'parse_earthquakes', rawData: geojson });
+     } catch (err) { console.error(err); }
+ };
+
+ window.toggleVolcanoes = async function(isActive) {
+     volcanoLayer.clearLayers();
+     if (!isActive) {
+         map.removeLayer(volcanoLayer);
+         return;
+     }
+     logAIStream(`[UPLINK] Querying Global Volcanic Ash Advisory Centers (VAAC)...`);
+     try {
+         const res = await fetch(`${backendUrl}/api/volcanoes`);
+         const data = await res.json();
+
+         data.events.forEach(volcano => {
+             const coords = volcano.geometry[0].coordinates;
+             const marker = L.circleMarker([coords[1], coords[0]], {
+                 radius: 8, color: '#ff3b30', weight: 2, fillColor: '#1a0505', fillOpacity: 0.9
+             });
+             marker.bindPopup(`
+                 <div style="font-family: monospace; font-size:0.8rem; color:#fff;">
+                     <b style="color:#ff3b30">🌋 ACTIVE VOLCANIC ERUPTION</b><br>
+                     ${volcano.title}<br>
+                     ⚠️ <b>Status:</b> Ash Plume / Thermal Anomaly Detected
+                 </div>
+             `);
+             volcanoLayer.addLayer(marker);
+         });
+         volcanoLayer.addTo(map);
+         logAIStream(`<span style="color:#ff3b30">[VOLCANIC] Mapped ${data.events.length} active stratospheric ash injections.</span>`);
+     } catch (err) { console.error(err); }
+ };
+
+ window.toggleRawFIRMS = async function(isActive) {
+     firmsRadiometryLayer.clearLayers();
+     if (!isActive) {
+         map.removeLayer(firmsRadiometryLayer);
+         return;
+     }
+     logAIStream(`[UPLINK] Establishing direct bypass to NASA MODAPS. Ingesting raw spectral arrays...`);
+     try {
+         const res = await fetch(`${backendUrl}/api/raw_firms`);
+         const data = await res.json();
+         if (data.status === "error") {
+             logAIStream(`<span style="color:var(--neon-red)">[ERROR] FIRMS Access Denied: ${data.message}</span>`);
+             return;
+         }
+         // Offload multi-spectral parsing to the Web Worker
+         analyticsWorker.postMessage({ action: 'parse_firms', rawData: data });
+     } catch (err) { console.error(err); }
+ };
     </script>
-</body>
+  </body>
 </html>
