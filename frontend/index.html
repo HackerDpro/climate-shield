@@ -366,7 +366,7 @@
             <div class="metric-val" id="total-fires">0000</div>
           </div>
 
-          <h2>🛰️ Satellite Status</h2>
+          <h2>Satellite Status</h2>
           <div class="metric-box" style="padding: 10px 15px">
             <div class="satellite-row">
               <span>EOS-AM1 (TERRA)</span
@@ -386,33 +386,7 @@
             </div>
           </div>
 
-          <div style="margin-top: 15px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); padding: 12px; font-family: monospace; border-radius: 4px;">
-    <div style="color: #bf5af2; font-weight: bold; font-size: 0.85rem; margin-bottom: 8px;">🌍 MULTI-SPECTRAL SENSOR ARRAYS</div>
-    
-    <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; margin-bottom: 8px; cursor: pointer;">
-        <input type="checkbox" onchange="window.toggleMudslideTracker(this.checked)" style="margin-right: 8px; accent-color: #bf5af2;">
-        ⚠️ BURN SCAR MUDSLIDE RADAR
-    </label>
-    <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; margin-bottom: 8px; cursor: pointer;">
-        <input type="checkbox" onchange="window.toggleOceanThermalTracker(this.checked)" style="margin-right: 8px; accent-color: #0a84ff;">
-        🌀 DEEP-OCEAN CYCLONE ANOMALIES
-    </label>
-
-    <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; margin-bottom: 8px; cursor: pointer;">
-        <input type="checkbox" onchange="window.toggleLithosphere(this.checked)" style="margin-right: 8px; accent-color: #ff9f0a;">
-        💥 LITHOSPHERIC SEISMIC MATRIX (>4.5 M)
-    </label>
-    <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; margin-bottom: 8px; cursor: pointer;">
-        <input type="checkbox" onchange="window.toggleVolcanoes(this.checked)" style="margin-right: 8px; accent-color: #ff3b30;">
-        🌋 VOLCANIC ERUPTION/ASH TRACKER
-    </label>
-    <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; cursor: pointer;">
-        <input type="checkbox" onchange="window.toggleRawFIRMS(this.checked)" style="margin-right: 8px; accent-color: #00f3ff;">
-        🛰️ RAW SATELLITE RADIOMETRY (FRP / Temp)
-    </label>
-</div>
-
-          <h2>🤖 AI Real-Time Stream</h2>
+          <h2>AI Real-Time Stream</h2>
           <div class="cyber-log" id="cyber-stream">
             <div>[SYS] Listening for planetary hotspot signature flags...</div>
           </div>
@@ -420,19 +394,35 @@
 
         <div id="map-container">
           <div id="map"></div>
-          <div
-            id="orbital-globe-ui"
-            style="
-              width: 100%;
-              height: 100%;
-              position: absolute;
-              top: 0;
-              left: 0;
-              z-index: 1;
-              display: none;
-              background: #000;
-            "
-          ></div>
+          <div id="orbital-globe-ui" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; display: none; background: #000;"></div>
+          
+          <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(10, 15, 24, 0.9); border: 1px solid rgba(0, 243, 255, 0.3); padding: 12px 20px; font-family: monospace; border-radius: 8px; backdrop-filter: blur(10px); display: flex; flex-direction: column; align-items: center; box-shadow: 0 0 20px rgba(0,0,0,0.8); min-width: 600px;">
+              <div style="color: #bf5af2; font-weight: bold; font-size: 0.85rem; margin-bottom: 10px; letter-spacing: 1px;">MORE SENSORS</div>
+              
+              <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+                  <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; cursor: pointer;">
+                      <input type="checkbox" onchange="window.toggleMudslideTracker(this.checked)" style="margin-right: 6px; accent-color: #bf5af2;">
+                      MUDSLIDES (LANDSLIDES)
+                  </label>
+                  <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; cursor: pointer;">
+                      <input type="checkbox" onchange="window.toggleOceanThermalTracker(this.checked)" style="margin-right: 6px; accent-color: #0a84ff;">
+                      CYCLONES (HURRICANES)
+                  </label>
+                  <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; cursor: pointer;">
+                      <input type="checkbox" onchange="window.toggleLithosphere(this.checked)" style="margin-right: 6px; accent-color: #ff9f0a;">
+                      EARTHQUAKES
+                  </label>
+                  <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; cursor: pointer;">
+                      <input type="checkbox" onchange="window.toggleVolcanoes(this.checked)" style="margin-right: 6px; accent-color: #ff3b30;">
+                      ASH CLOUDS (VOLCANOES)
+                  </label>
+                  <label style="display: flex; align-items: center; color: #fff; font-size: 0.75rem; cursor: pointer;">
+                      <input type="checkbox" onchange="window.toggleRawFIRMS(this.checked)" style="margin-right: 6px; accent-color: #00f3ff;">
+                      SATELLITE HEAT
+                  </label>
+              </div>
+          </div>
+
         </div>
 
         <div class="sidebar" id="right-sidebar">
@@ -444,7 +434,7 @@
               margin-bottom: 10px;
             "
           >
-            <h2 style="margin: 0; border: none; padding: 0">🚨 THREATS</h2>
+            <h2 style="margin: 0; border: none; padding: 0">THREATS</h2>
             <select
               class="sort-select"
               id="threat-sort"
@@ -474,7 +464,7 @@
               ECOSYSTEM TELEMETRY
             </h1>
             <p style="color: #6b7280; margin: 5px 0 0 0; font-size: 0.85rem">
-              Predictive AI Analytics
+              GLOBAL ECO-STATS
             </p>
           </div>
         </div>
@@ -482,13 +472,13 @@
         <div class="telemetry-grid">
           <div class="metric-box tele-card-4">
             <div style="font-size: 0.75rem; color: #a1a1aa">
-              TOTAL ATMOSPHERIC CARBON FLUX
+              GLOBAL CARBON EMISSIONS
             </div>
             <div class="metric-val" id="kpi-carbon">0.00 MT</div>
           </div>
           <div class="metric-box tele-card-4">
             <div style="font-size: 0.75rem; color: #a1a1aa">
-              CRITICAL EMERGENCY OUTBREAKS
+              ACTIVE EMERGENCIES
             </div>
             <div
               class="metric-val"
@@ -500,7 +490,7 @@
           </div>
           <div class="metric-box tele-card-4">
             <div style="font-size: 0.75rem; color: #a1a1aa">
-              AI PREDICTIVE RISK AVERAGE
+              AVERAGE RISK LEVEL
             </div>
             <div
               class="metric-val"
@@ -512,17 +502,17 @@
           </div>
 
           <div class="metric-box tele-card-6">
-            <h2>Threat Threshold Spread</h2>
+            <h2>Risk Zones</h2>
             <div class="chart-wrapper"><canvas id="threatChart"></canvas></div>
           </div>
 
           <div class="metric-box tele-card-6">
-            <h2>Atmospheric CO2 Trajectory (Est. Megatons)</h2>
+            <h2>CO2 Levels Trend (Est. Megatons)</h2>
             <div class="chart-wrapper"><canvas id="carbonChart"></canvas></div>
           </div>
 
           <div class="metric-box tele-card-full">
-            <h2>📋 Top 10 Active Outbreaks</h2>
+            <h2>Top 10 Active Outbreaks</h2>
             <div style="overflow-x: auto; margin-top: 10px">
               <table
                 style="
@@ -540,11 +530,11 @@
                       color: var(--neon-cyan);
                     "
                   >
-                    <th style="padding: 10px 5px">LOCATION / INCIDENT</th>
-                    <th>LATITUDE</th>
+                    <th style="padding: 10px 5px">LOCATION / EVENT</th>
+                    <th>COORDINATES</th>
                     <th>LONGITUDE</th>
-                    <th>DENSITY RANK</th>
-                    <th>STATUS FLAG</th>
+                    <th>SEVERITY</th>
+                    <th>STATUS</th>
                   </tr>
                 </thead>
                 <tbody style="color: #a1a1aa" id="table-body-matrix"></tbody>
@@ -595,15 +585,6 @@ let firmsRadiometryLayer = L.layerGroup();
           noWrap: true,
         },
       ).addTo(map);
-
-      // Global Hotspots for the Proactive AI Matrix
-      const AI_HOTSPOTS = [
-        { name: "Amazon Basin", lat: -3.46, lon: -62.21 },
-        { name: "California Scrublands", lat: 37.77, lon: -119.41 },
-        { name: "Australian Outback", lat: -25.27, lon: 133.77 },
-        { name: "Siberian Taiga", lat: 61.38, lon: 98.83 },
-        { name: "Mediterranean Coast", lat: 39.07, lon: 21.82 },
-      ];
 
       // 🔥 PHASE 1: TACTICAL PREDICTIVE SCANNER 🔥
       // Allows the user to click anywhere on the empty map to run a Pre-Crime AI scan
@@ -663,12 +644,12 @@ let firmsRadiometryLayer = L.layerGroup();
             // 4. Inject the HUD data
             scanRing.setPopupContent(`
                         <div style="font-family: monospace; font-size: 0.8rem; min-width: 220px; line-height: 1.5;">
-                            <b style="color:${color}; font-size: 0.95rem;">PREDICTIVE AI ANALYSIS</b><br><br>
-                            🌡️ <span style="color:#a1a1aa;">TEMP:</span> ${data.telemetry.temp_c}°C<br>
-                            💧 <span style="color:#a1a1aa;">HUMIDITY:</span> ${data.telemetry.humidity}<br>
-                            💨 <span style="color:#a1a1aa;">WIND:</span> ${data.telemetry.wind_kmh} km/h<br>
-                            ⚠️ <span style="color:#a1a1aa;">STATUS:</span> <b style="color:${color}">${data.ai_status}</b><br>
-                            🔥 <span style="color:#a1a1aa;">IGNITION PROBABILITY:</span> <b style="font-size:1.1rem; color:${color}">${data.ignition_probability}</b>
+                            <b style="color:${color}; font-size: 0.95rem;">AI RISK FORECAST</b><br><br>
+                            <span style="color:#a1a1aa;">TEMP:</span> ${data.telemetry.temp_c}°C<br>
+                            <span style="color:#a1a1aa;">HUMIDITY:</span> ${data.telemetry.humidity}<br>
+                            <span style="color:#a1a1aa;">WIND:</span> ${data.telemetry.wind_kmh} km/h<br>
+                            <span style="color:#a1a1aa;">STATUS:</span> <b style="color:${color}">${data.ai_status}</b><br>
+                            <span style="color:#a1a1aa;">FIRE RISK:</span> <b style="font-size:1.1rem; color:${color}">${data.ignition_probability}</b>
                         </div>
                     `);
             logAIStream(
@@ -813,16 +794,16 @@ let firmsRadiometryLayer = L.layerGroup();
           fire.markerRef.setPopupContent(`
                     <div style="font-family: monospace; min-width: 290px; font-size: 0.8rem; line-height: 1.5;">
                         <b style="color: ${threatColor}; font-size: 0.95rem;">${fire.title}</b><br><br>
-                        💨 <span style="color:#a1a1aa;">WIND VECTOR:</span> ${speedKmh} km/h @ ${wind.direction}°<br>
-                        ⛰️ <span style="color:#a1a1aa;">ALTITUDE:</span> ${terrain.elevation_meters} m<br>
-                        🤖 <span style="color:#a1a1aa;">TERRAIN AI:</span> <b style="color:${terrain.spread_multiplier > 1.2 ? "#ff3b30" : "#00f3ff"}">${terrain.terrain_status}</b><br>
-                        ☠️ <span style="color:#a1a1aa;">ATMOSPHERE (PM2.5):</span> <b style="color:${aqColor};">${aq.pm2_5} µg/m³</b><br>
-                        📈 <span style="color:#a1a1aa;">24H PROJECTION:</span> ~${projectedSpread} km linear spread<br>
-                        📊 <span style="color:#a1a1aa;">HAZARD SCORE:</span> <b style="color:${threatColor};">${hazardIndex} / 100</b>
+                        <span style="color:#a1a1aa;">WIND:</span> ${speedKmh} km/h @ ${wind.direction}°<br>
+                        <span style="color:#a1a1aa;">ELEVATION:</span> ${terrain.elevation_meters} m<br>
+                        <span style="color:#a1a1aa;">MAP DATA:</span> <b style="color:${terrain.spread_multiplier > 1.2 ? "#ff3b30" : "#00f3ff"}">${terrain.terrain_status}</b><br>
+                        <span style="color:#a1a1aa;">AIR QUALITY (PM2.5):</span> <b style="color:${aqColor};">${aq.pm2_5} µg/m³</b><br>
+                        <span style="color:#a1a1aa;">24H SPREAD FORECAST:</span> ~${projectedSpread} km linear spread<br>
+                        <span style="color:#a1a1aa;">HAZARD SCORE:</span> <b style="color:${threatColor};">${hazardIndex} / 100</b>
                         
                         <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
                             <button onclick="event.stopPropagation(); window.calculateSuppressionMetrics(${fire.lat}, ${fire.lon})" style="width: 100%; padding: 8px; background: rgba(0, 243, 255, 0.1); border: 1px solid #00f3ff; color: #00f3ff; font-family: monospace; font-weight: bold; cursor: pointer; transition: 0.3s;" onmouseover="this.style.background='#00f3ff'; this.style.color='#000';" onmouseout="this.style.background='rgba(0, 243, 255, 0.1)'; this.style.color='#00f3ff';">
-                                📊 CALCULATE RESOURCE REQUIREMENTS
+                                CALCULATE RESOURCE REQUIREMENTS
                             </button>
                         </div>
                     </div>
@@ -1288,10 +1269,10 @@ let firmsRadiometryLayer = L.layerGroup();
 
                 zone.bindPopup(`
                                 <div style="font-family: monospace; font-size: 0.8rem; line-height: 1.4;">
-                                    <b style="color:${color};">AUTOMATED AI ALERT</b><br>
+                                    <b style="color:${color};">REGIONAL ALERTS</b><br>
                                     <b>REGION:</b> ${hotspot.name}<br>
-                                    <b>IGNITION RISK:</b> <span style="font-size:1.1rem; color:${color}">${data.ignition_probability}</span><br>
-                                    <b>AI STATUS:</b> ${data.ai_status}
+                                    <b>FIRE RISK:</b> <span style="font-size:1.1rem; color:${color}">${data.ignition_probability}</span><br>
+                                    <b>STATUS:</b> ${data.ai_status}
                                 </div>
                             `);
               }
@@ -1458,93 +1439,8 @@ let firmsRadiometryLayer = L.layerGroup();
         // PHASE 5: GROUND TRUTH CROWDSOURCING
         // ==========================================
         
-        // 1. Inject the Mobile-First Report Button into the DOM
-        const reportBtn = document.createElement('button');
-        reportBtn.innerHTML = "⚠️ UPLOAD GROUND TRUTH";
-        Object.assign(reportBtn.style, {
-            position: 'absolute', bottom: '25px', left: '50%', transform: 'translateX(-50%)',
-            zIndex: 2000, background: 'rgba(255, 59, 48, 0.9)', color: '#fff', border: '1px solid #ff3b30',
-            padding: '12px 24px', borderRadius: '30px', fontFamily: 'monospace', fontWeight: 'bold',
-            cursor: 'pointer', boxShadow: '0 0 15px rgba(255,59,48,0.4)'
-        });
-        document.body.appendChild(reportBtn);
+        // REMOVED: It seemed too useless
 
-        // 2. Report Modal Logic
-        reportBtn.onclick = () => {
-            const modal = document.createElement('div');
-            Object.assign(modal.style, {
-                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                background: 'rgba(10, 15, 24, 0.95)', border: '1px solid #00f3ff', padding: '25px',
-                zIndex: 3000, borderRadius: '8px', color: '#fff', fontFamily: 'monospace', width: '320px'
-            });
-
-            modal.innerHTML = `
-                <h3 style="color:#00f3ff; margin-top:0;">📡 GROUND TRUTH UPLINK</h3>
-                <p style="font-size:0.8rem; color:#a1a1aa;">Submit localized data to update planetary models.</p>
-                
-                <label style="font-size:0.75rem;">Incident Type:</label>
-                <select style="width:100%; margin: 5px 0 15px 0; background:#000; color:#00f3ff; border:1px solid rgba(0,243,255,0.3); padding:5px;">
-                    <option>Visual Smoke Confirmation</option>
-                    <option>Road Blocked / Impassable</option>
-                    <option>Asset Deployed</option>
-                </select>
-
-                <label style="font-size:0.75rem;">Upload Visual Evidence (AI Verified):</label>
-                <input type="file" accept="image/*" style="width:100%; margin: 5px 0 15px 0; font-size:0.7rem;">
-
-                <button id="submit-truth" style="width:100%; padding:8px; background:#10b981; border:none; color:#000; font-weight:bold; cursor:pointer;">TRANSMIT TO ORBIT</button>
-                <button id="close-modal" style="width:100%; padding:8px; background:transparent; border:none; color:#a1a1aa; margin-top:5px; cursor:pointer;">CANCEL</button>
-            `;
-            document.body.appendChild(modal);
-
-            document.getElementById('close-modal').onclick = () => document.body.removeChild(modal);
-            
-// 3. SECURE API VERIFICATION LINK
-            document.getElementById('submit-truth').onclick = async () => {
-                const fileInput = document.querySelector('input[type="file"]');
-                if (!fileInput.files || fileInput.files.length === 0) {
-                    alert("Please select a raw data image first.");
-                    return;
-                }
-
-                const file = fileInput.files[0];
-                document.body.removeChild(modal); 
-                
-                logAIStream(`<span style="color:#10b981">[GROUND TRUTH] Ingesting payload. Uplinking to secure proxy node...</span>`);
-
-                try {
-                    const fileData = await file.arrayBuffer();
-
-                    // Ping your own backend server instead of Hugging Face directly
-                    const response = await fetch(`${backendUrl}/api/verify_image`, {
-                        method: "POST",
-                        body: fileData
-                    });
-
-                    const result = await response.json();
-                    let isVerified = false;
-                    
-                    if (Array.isArray(result)) {
-                        for (const item of result) {
-                            if (item.label.includes("smoke") || item.label.includes("fire") || item.label.includes("ash")) {
-                                isVerified = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (isVerified) {
-                        logAIStream(`<span style="color:#00f3ff">[VERIFIED] Upstream Neural Net confirmed active fire/smoke signatures.</span>`);
-                    } else {
-                        logAIStream(`<span style="color:var(--neon-amber)">[REJECTED] Payload analyzed. Signatures do not match combustion profile.</span>`);
-                    }
-
-                } catch (error) {
-                    console.error("AI Error:", error);
-                    logAIStream(`<span style="color:var(--neon-red)">[ERROR] Secure proxy handshake timed out.</span>`);
-                }
-            };
-        };
         // =========================================================================
 // PHASE 7: MULTI-THREADED WEB WORKER (ZERO-LAG PARSING ARCHITECTURE)
 // =========================================================================
@@ -1596,10 +1492,10 @@ let firmsRadiometryLayer = L.layerGroup();
              });
              marker.bindPopup(`
                  <div style="font-family: monospace; font-size:0.8rem; color:#fff;">
-                     <b style="color:${eqColor}">💥 LITHOSPHERIC FRACTURE DETECTED</b><br>
+                     <b style="color:${eqColor}">EARTHQUAKE DETECTED</b><br>
                      ${quake.title}<br>
-                     📏 <b>Magnitude:</b> ${quake.mag} M<br>
-                     🕳️ <b>Hypocenter Depth:</b> ${quake.depth} km
+                     <b>Size:</b> ${quake.mag} M<br>
+                     <b>Depth:</b> ${quake.depth} km
                  </div>
              `);
              lithosphereLayer.addLayer(marker);
@@ -1615,9 +1511,9 @@ let firmsRadiometryLayer = L.layerGroup();
              });
              marker.bindPopup(`
                  <div style="font-family: monospace; font-size:0.8rem; color:#fff;">
-                     <b style="color:#00f3ff">🛰️ RAW SPECTRAL RADIOMETRY</b><br>
-                     🔥 <b>Fire Radiative Power (FRP):</b> ${pt.frp} MW<br>
-                     🌡️ <b>Brightness Temp:</b> ${pt.temp} K
+                     <b style="color:#00f3ff">SATELLITE HEAT SENSORS</b><br>
+                     <b>Fire Intensity (FRP):</b> ${pt.frp} MW<br>
+                     <b>Ground Heat:</b> ${pt.temp} K
                  </div>
              `);
              firmsRadiometryLayer.addLayer(marker);
@@ -1630,6 +1526,62 @@ let firmsRadiometryLayer = L.layerGroup();
  // ==========================================
  // PHASE 6 & 8: HAZARD TOGGLE FUNCTIONS
  // ==========================================
+
+ window.toggleMudslideTracker = function(isActive) {
+            mudslideLayerGroup.clearLayers();
+            if (!isActive) { map.removeLayer(mudslideLayerGroup); return; }
+
+            logAIStream(`[COMPUTING] Cross-referencing burn scars with terrain slope gradients...`);
+            let threatCount = 0;
+            
+            // Analyze the live fire data for steep slopes
+            globalFireData.forEach(fire => {
+                if (fire.density_score > 3 && fire.liveTerrain && fire.liveTerrain.elevation_meters > 600) {
+                    threatCount++;
+                    const zone = L.circle([fire.lat, fire.lon], {
+                        color: '#bf5af2', weight: 2, fillColor: '#bf5af2', fillOpacity: 0.2, radius: 4500, dashArray: '8, 8'
+                    }).bindPopup(`
+                        <div style="font-family: monospace; font-size:0.8rem; color:#fff;">
+                            <b style="color:#bf5af2">⚠️ CRITICAL MUDSLIDE RISK</b><br>
+                            Elevation: ${fire.liveTerrain.elevation_meters}m<br>
+                            Post-fire hydrophobic soil instability detected on high-gradient slope.
+                        </div>
+                    `);
+                    mudslideLayerGroup.addLayer(zone);
+                }
+            });
+            mudslideLayerGroup.addTo(map);
+            logAIStream(`<span style="color:#bf5af2">[ALARM] ${threatCount} vulnerable burn scar structures mapped.</span>`);
+        };
+
+        window.toggleOceanThermalTracker = function(isActive) {
+            hurricaneLayerGroup.clearLayers();
+            if (!isActive) { map.removeLayer(hurricaneLayerGroup); return; }
+
+            logAIStream(`[UPLINK] Scanning Deep-Ocean Sea Surface Temperatures (SST)...`);
+            
+            // Baseline genesis zones for cyclone anomalies
+            const anomalies = [
+                { name: "Atlantic MDR", lat: 15.4, lon: -45.2, sst: 29.1 },
+                { name: "Gulf Baseline", lat: 24.2, lon: -87.5, sst: 30.2 },
+                { name: "Pacific Matrix", lat: 12.8, lon: 135.6, sst: 29.8 }
+            ];
+
+            anomalies.forEach(anomaly => {
+                const zone = L.circle([anomaly.lat, anomaly.lon], {
+                    color: '#0a84ff', weight: 1, fillColor: '#0a84ff', fillOpacity: 0.15, radius: 250000, dashArray: '4, 4'
+                }).bindPopup(`
+                    <div style="font-family: monospace; font-size:0.8rem; color:#fff;">
+                        <b style="color:#0a84ff">HURRICANE/CYCLONE TRACKER</b><br>
+                        Region: ${anomaly.name}<br>
+                        Water Temp: ${anomaly.sst}°C (Critical Threshold >26.5°C)
+                    </div>
+                `);
+                hurricaneLayerGroup.addLayer(zone);
+            });
+            hurricaneLayerGroup.addTo(map);
+            logAIStream(`<span style="color:#0a84ff">[DETECTED] Anomalous oceanic thermal zones mapped.</span>`);
+        };
 
  window.toggleLithosphere = async function(isActive) {
      lithosphereLayer.clearLayers();
@@ -1664,9 +1616,9 @@ let firmsRadiometryLayer = L.layerGroup();
              });
              marker.bindPopup(`
                  <div style="font-family: monospace; font-size:0.8rem; color:#fff;">
-                     <b style="color:#ff3b30">🌋 ACTIVE VOLCANIC ERUPTION</b><br>
+                     <b style="color:#ff3b30">ACTIVE VOLCANIC ERUPTION</b><br>
                      ${volcano.title}<br>
-                     ⚠️ <b>Status:</b> Ash Plume / Thermal Anomaly Detected
+                     <b>Status:</b> Ash Cloud & Heat Detected
                  </div>
              `);
              volcanoLayer.addLayer(marker);
