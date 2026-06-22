@@ -240,17 +240,22 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
-const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
+// ==========================================
+        // SYSTEM INITIALIZATION & GLOBAL VARIABLES
+        // ==========================================
+        const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
         const backendUrl = "https://climate-shield-api.onrender.com";
-        let currentWindLine = null;
         
+        let currentWindLine = null;
         let globalFireData = []; 
-        let displayedFiresCount = 50; // Infinite Scroll Limit
+        let displayedFiresCount = 50; 
         let currentSortMode = 'desc';
+        let myGlobe = null; // Global 3D Engine Instance
 
+        // 2D Tactical Map Basemap
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
 
-        // Global Hotspots for the Proactive AI Matrix
+        // Global Hotspots for Proactive AI
         const AI_HOTSPOTS = [
             { name: "Amazon Basin", lat: -3.46, lon: -62.21 },
             { name: "California Scrublands", lat: 37.77, lon: -119.41 },
@@ -259,39 +264,73 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
             { name: "Mediterranean Coast", lat: 39.07, lon: 21.82 }
         ];
 
-        // 🔥 PHASE 1: TACTICAL PREDICTIVE SCANNER 🔥
-        // Allows the user to click anywhere on the empty map to run a Pre-Crime AI scan
+        // ==========================================
+        // UI & NAVIGATION ROUTING
+        // ==========================================
+        function switchMode(mode) {
+            document.body.className = `view-${mode}`;
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            const activeBtn = document.getElementById(`btn-${mode}`);
+            if (activeBtn) activeBtn.classList.add('active');
+            
+            const mapEl = document.getElementById('map');
+            const globeEl = document.getElementById('orbital-globe-ui');
+
+            if (mode === 'orbital') {
+                if (mapEl) mapEl.style.display = 'none';
+                if (globeEl) globeEl.style.display = 'block';
+                
+                if (!myGlobe) {
+                    init3DOrbitalCenter();
+                } else {
+                    updateGlobeData();
+                }
+            } else {
+                if (mapEl) mapEl.style.display = 'block';
+                if (globeEl) globeEl.style.display = 'none';
+                
+                if (mode !== 'telemetry') setTimeout(() => map.invalidateSize(), 400);
+                if (mode === 'telemetry') renderCharts(); 
+            }
+        }
+
+        function logAIStream(message) {
+            const stream = document.getElementById('cyber-stream');
+            if(!stream) return;
+            const entry = document.createElement('div');
+            const timestamp = new Date().toISOString().split('T')[1].substring(0,8);
+            entry.innerHTML = `<span style="color:var(--neon-cyan)">[${timestamp}]</span> ${message}`;
+            stream.insertBefore(entry, stream.firstChild);
+            if(stream.children.length > 30) stream.removeChild(stream.lastChild);
+        }
+
+        // ==========================================
+        // PHASE 1: TACTICAL 2D MAP & AI SCANNERS
+        // ==========================================
         map.on('click', async function(e) {
-            // Only allow scanning in Tactical Mode
             if(document.body.className !== 'view-tactical') return; 
 
             const lat = e.latlng.lat;
             const lon = e.latlng.lng;
 
-            // 1. Draw a glowing cyan scanning ring (Expanded to an impressive 80km radius)
             const scanRing = L.circle([lat, lon], {
-                color: '#00f3ff', weight: 2,
-                fillColor: '#00f3ff', fillOpacity: 0.1,
-                radius: 80000, // 80km expanded tactical scan radius
-                dashArray: '4, 6'
+                color: '#00f3ff', weight: 2, fillColor: '#00f3ff', fillOpacity: 0.1,
+                radius: 80000, dashArray: '4, 6'
             }).addTo(map);
 
             scanRing.bindPopup(`<span style="color:var(--neon-cyan); font-family:monospace;">Initiating Orbital Scan...</span>`).openPopup();
             logAIStream(`Initiating predictive AI scan at sector [${lat.toFixed(2)}, ${lon.toFixed(2)}]...`);
 
             try {
-                // 2. Ping the new backend engine we just built
                 const res = await fetch(`${backendUrl}/api/ignition_risk?lat=${lat}&lon=${lon}`);
                 const data = await res.json();
 
                 if(data.status === "success") {
-                    // 3. Change ring color based on AI Threat Level
                     let riskVal = parseFloat(data.ignition_probability);
                     let color = riskVal >= 75 ? '#ff3b30' : (riskVal >= 50 ? '#ff9f0a' : '#10b981');
                     
                     scanRing.setStyle({ color: color, fillColor: color, fillOpacity: 0.2, dashArray: '' });
-                    
-                    // 4. Inject the HUD data
                     scanRing.setPopupContent(`
                         <div style="font-family: monospace; font-size: 0.8rem; min-width: 220px; line-height: 1.5;">
                             <b style="color:${color}; font-size: 0.95rem;">PREDICTIVE AI ANALYSIS</b><br><br>
@@ -313,299 +352,19 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
             }
         });
 
-        let myGlobe = null; // Global variable to hold our 3D instance
-
-        function switchMode(mode) {
-            document.body.className = `view-${mode}`;
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            
-            // Check if the nav button exists before trying to add 'active'
-            const activeBtn = document.getElementById(`btn-${mode}`);
-            if (activeBtn) activeBtn.classList.add('active');
-            
-            const mapEl = document.getElementById('map');
-            const globeEl = document.getElementById('orbital-globe-ui');
-
-            if (mode === 'orbital') {
-                // Hide 2D map, display 3D WebGL Globe
-                if (mapEl) mapEl.style.display = 'none';
-                if (globeEl) globeEl.style.display = 'block';
-                
-                // Initialize the globe if it hasn't been built yet
-                if (!myGlobe) {
-                    init3DOrbitalCenter();
-                } else {
-                    // Update data dynamically on view switch
-                    updateGlobeData();
-                }
-            } else {
-                // Show 2D map, hide 3D WebGL Globe
-                if (mapEl) mapEl.style.display = 'block';
-                if (globeEl) globeEl.style.display = 'none';
-                
-                if (mode !== 'telemetry') setTimeout(() => map.invalidateSize(), 400);
-                if (mode === 'telemetry') renderCharts(); 
-            }
-        }
-
-        function logAIStream(message) {
-            const stream = document.getElementById('cyber-stream');
-            const entry = document.createElement('div');
-            const timestamp = new Date().toISOString().split('T')[1].substring(0,8);
-            entry.innerHTML = `<span style="color:var(--neon-cyan)">[${timestamp}]</span> ${message}`;
-            stream.insertBefore(entry, stream.firstChild);
-            if(stream.children.length > 30) stream.removeChild(stream.lastChild);
-        }
-
-        async function inspectFire(fire) {
-            const startTime = performance.now();
-            map.setView([fire.lat, fire.lon], 9);
-            
-            // Re-bind just in case it was a UI click
-            fire.markerRef.bindPopup(`<b>${fire.title}</b><br><span style='color:var(--neon-cyan);'>Querying multiple orbital APIs...</span>`, { offset: [0, -10] }).openPopup();
-
-            if (currentWindLine) map.removeLayer(currentWindLine);
-            logAIStream(`Initiated multipoint sensor sweep for: ${fire.lat.toFixed(2)}, ${fire.lon.toFixed(2)}`);
-
-            try {
-                const [resWind, resTerrain, resAQ] = await Promise.all([
-                    fetch(`${backendUrl}/api/wind?lat=${fire.lat}&lon=${fire.lon}`),
-                    fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=0`),
-                    fetch(`${backendUrl}/api/air_quality?lat=${fire.lat}&lon=${fire.lon}`)
-                ]);
-
-                const wind = await resWind.json();
-                const resTerrainReal = await fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=${wind.direction}`);
-                const terrain = await resTerrainReal.json();
-                const aq = await resAQ.json();
-
-                const endTime = performance.now();
-                logAIStream(`Data fused in ${(endTime - startTime).toFixed(0)}ms. Terrain Alt: ${terrain.elevation_meters}m.`);
-
-                let hazardIndex = Math.round(Math.min(wind.speed * 4.5, 50) + Math.min(fire.density_score * 4.0, 50));
-                hazardIndex = Math.min(Math.round(hazardIndex * terrain.spread_multiplier), 100);
-
-                let threatColor = hazardIndex >= 65 ? "#ff3b30" : (hazardIndex >= 35 ? "#ff9f0a" : "#10b981");
-                const speedKmh = (wind.speed * 3.6).toFixed(1);
-                const projectedSpread = (wind.speed * 0.22 * 24 * terrain.spread_multiplier).toFixed(2);
-
-                let aqColor = aq.pm2_5 > 50 ? "#ff3b30" : (aq.pm2_5 > 15 ? "#ff9f0a" : "#10b981");
-
-                fire.markerRef.setPopupContent(`
-                    <div style="font-family: monospace; min-width: 290px; font-size: 0.8rem; line-height: 1.5;">
-                        <b style="color: ${threatColor}; font-size: 0.95rem;">${fire.title}</b><br><br>
-                        💨 <span style="color:#a1a1aa;">WIND VECTOR:</span> ${speedKmh} km/h @ ${wind.direction}°<br>
-                        ⛰️ <span style="color:#a1a1aa;">ALTITUDE:</span> ${terrain.elevation_meters} m<br>
-                        🤖 <span style="color:#a1a1aa;">TERRAIN AI:</span> <b style="color:${terrain.spread_multiplier > 1.2 ? '#ff3b30' : '#00f3ff'}">${terrain.terrain_status}</b><br>
-                        ☠️ <span style="color:#a1a1aa;">ATMOSPHERE (PM2.5):</span> <b style="color:${aqColor};">${aq.pm2_5} µg/m³</b><br>
-                        📈 <span style="color:#a1a1aa;">24H PROJECTION:</span> ~${projectedSpread} km linear spread<br>
-                        📊 <span style="color:#a1a1aa;">HAZARD SCORE:</span> <b style="color:${threatColor};">${hazardIndex} / 100</b>
-                    </div>
-                `);
-
-                const latOffset = (Math.cos(wind.direction * Math.PI / 180) * (wind.speed / 5));
-                const lonOffset = (Math.sin(wind.direction * Math.PI / 180) * (wind.speed / 5));
-
-                currentWindLine = L.polyline([[fire.lat, fire.lon], [fire.lat + latOffset, fire.lon + lonOffset]], {
-                    color: threatColor, weight: 4, opacity: 0.9, dashArray: '5, 5'
-                }).addTo(map);
-
-            } catch (err) { 
-                logAIStream(`<span style="color:red">ERROR: Packet loss on coordinates ${fire.lat.toFixed(2)}</span>`);
-            }
-        }
-
-        function handleSortChange() {
-            currentSortMode = document.getElementById('threat-sort').value;
-            displayedFiresCount = 50; 
-            renderThreatMatrix(true);
-        }
-
-        function renderThreatMatrix(reset = false) {
-            const container = document.getElementById('threat-matrix');
-            if (reset) container.innerHTML = "";
-
-            const sortedData = [...globalFireData].sort((a, b) => {
-                return currentSortMode === 'desc' ? b.density_score - a.density_score : a.density_score - b.density_score;
-            });
-
-            const currentRenderedCount = container.children.length;
-            const toRender = sortedData.slice(currentRenderedCount, displayedFiresCount);
-
-            toRender.forEach(fire => {
-                let markerColor = fire.density_score >= 8 ? '#dc2626' : (fire.density_score >= 3 ? '#d97706' : '#059669');
-                const card = document.createElement('div');
-                card.className = 'threat-card';
-                card.style.background = `rgba(${fire.density_score >= 8 ? '255,59,48' : '255,159,10'}, 0.05)`;
-                card.style.border = `1px solid rgba(${fire.density_score >= 8 ? '255,59,48' : '255,159,10'}, 0.25)`;
-                card.innerHTML = `<div class="threat-title" style="color: ${markerColor}">⚠️ CLUSTER: ${fire.title}</div><div style="font-size: 0.7rem; color: #a1a1aa;">LAT: ${fire.lat.toFixed(2)} | LON: ${fire.lon.toFixed(2)}</div>`;
-                card.onclick = () => {
-                    if(document.body.className !== 'view-tactical') switchMode('tactical');
-                    inspectFire(fire);
-                };
-                container.appendChild(card);
-            });
-        }
-
-        document.getElementById('right-sidebar').addEventListener('scroll', function() {
-            if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
-                if (displayedFiresCount < globalFireData.length) {
-                    displayedFiresCount += 50;
-                    renderThreatMatrix();
-                }
-            }
-        });
-
-        async function initializeCommandCenter() {
-            try {
-                logAIStream("Booting Main Terminal. Establishing NASA EONET uplink...");
-                
-                const [fireRes, satRes] = await Promise.all([
-                    fetch(`${backendUrl}/api/fires`),
-                    fetch(`${backendUrl}/api/satellites`)
-                ]);
-                
-                const data = await fireRes.json();
-                const satData = await satRes.json();
-
-                const satContainer = document.querySelector('.satellite-row').parentElement;
-                satContainer.innerHTML = ""; 
-                if(satData.instruments) {
-                    satData.instruments.forEach(inst => {
-                        satContainer.innerHTML += `<div class="satellite-row"><span>${inst.toUpperCase()}</span><span style="color:var(--neon-green)">SYNCED</span></div>`;
-                    });
-                }
-
-                if (data.status === "success") {
-                    document.getElementById('total-fires').innerText = data.total_global;
-                    document.getElementById('kpi-carbon').innerText = (data.total_global * 0.14).toFixed(2) + " MT";
-                    
-                    let highRiskCount = 0;
-                    const tableBody = document.getElementById('table-body-matrix');
-                    tableBody.innerHTML = "";
-
-                    globalFireData = data.fires.map((fire, index) => {
-                        if (fire.density_score >= 8) highRiskCount++;
-                        let markerColor = fire.density_score >= 8 ? '#dc2626' : (fire.density_score >= 3 ? '#d97706' : '#059669');
-                        
-                        const marker = L.circleMarker([fire.lat, fire.lon], {
-                            radius: fire.density_score >= 8 ? 7 : (fire.density_score >= 3 ? 5 : 4),
-                            color: 'transparent', weight: 15, fillColor: markerColor, fillOpacity: 0.8
-                        }).addTo(map);
-
-                        fire.markerRef = marker;
-                        
-                        // 🔒 FIX: Prevent fire marker clicks from leaking into map radar clicks
-                        marker.on('click', function(e) {
-                            L.DomEvent.stopPropagation(e); 
-                            inspectFire(fire);
-                        });
-
-                        if (index < 10) {
-                            const row = document.createElement('tr');
-                            row.style.borderBottom = "1px solid rgba(255,255,255,0.03)";
-                            let flagColor = fire.density_score >= 8 ? "var(--neon-red)" : (fire.density_score >= 3 ? "var(--neon-amber)" : "var(--neon-green)");
-                            let flagText = fire.density_score >= 8 ? "CRITICAL OUTBREAK" : (fire.density_score >= 3 ? "ELEVATED THREAT" : "MONITORED");
-                            
-                            row.innerHTML = `
-                                <td style="padding: 10px 5px; color:#fff; font-weight:bold;">${fire.title}</td>
-                                <td>${fire.lat.toFixed(4)}</td>
-                                <td>${fire.lon.toFixed(4)}</td>
-                                <td style="color:var(--neon-cyan); font-weight:bold;">Tier ${fire.density_score}</td>
-                                <td style="color:${flagColor}; font-weight:bold;">${flagText}</td>
-                            `;
-                            tableBody.appendChild(row);
-                        }
-
-                        return fire;
-                    });
-
-                    renderThreatMatrix(true);
-
-                    document.getElementById('kpi-critical').innerText = highRiskCount;
-                    document.getElementById('kpi-risk').innerText = ((highRiskCount / data.total_global) * 100).toFixed(1) + "%";
-                    logAIStream(`Uplink processed ${data.total_global} total thermal events successfully.`);
-                }
-            } catch (error) { 
-                logAIStream(`<span style="color:red">CRITICAL SYSTEM FAILURE: Cannot reach backend.</span>`);
-            }
-        }
-
-        let threatChartInstance = null;
-        let carbonChartInstance = null;
-
-        function renderCharts() {
-            if (!globalFireData.length) return;
-            logAIStream(`Generating planetary Threat Matrix rendering...`);
-
-            let lowRisk = 0, medRisk = 0, highRisk = 0;
-            globalFireData.forEach(f => {
-                if (f.density_score >= 8) highRisk++;
-                else if (f.density_score >= 3) medRisk++;
-                else lowRisk++;
-            });
-
-            const ctxThreat = document.getElementById('threatChart').getContext('2d');
-            if (threatChartInstance) threatChartInstance.destroy();
-            threatChartInstance = new Chart(ctxThreat, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Critical Outbreaks', 'Elevated Clusters', 'Routine/Isolated'],
-                    datasets: [{
-                        data: [highRisk, medRisk, lowRisk],
-                        backgroundColor: ['#ff3b30', '#ff9f0a', '#10b981'],
-                        borderWidth: 0, hoverOffset: 4
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#d1d5db', font: { family: 'monospace', size: 10 } } } } }
-            });
-
-            const ctxCarbon = document.getElementById('carbonChart').getContext('2d');
-            if (carbonChartInstance) carbonChartInstance.destroy();
-            
-            const baseCarbon = (globalFireData.length * 0.14);
-            const pastData = [baseCarbon*0.82, baseCarbon*0.88, baseCarbon*0.91, baseCarbon*0.85, baseCarbon*0.96, baseCarbon*0.98, baseCarbon];
-
-            carbonChartInstance = new Chart(ctxCarbon, {
-                type: 'line',
-                data: {
-                    labels: ['T-6D', 'T-5D', 'T-4D', 'T-3D', 'T-2D', 'T-1D', 'LAUNCH'],
-                    datasets: [{
-                        label: 'Carbon Injection',
-                        data: pastData,
-                        borderColor: '#00f3ff', backgroundColor: 'rgba(0, 243, 255, 0.05)',
-                        borderWidth: 2, fill: true, tension: 0.3, pointRadius: 2
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#6b7280', font: { family: 'monospace' } } }, y: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#6b7280', font: { family: 'monospace' } } } }, plugins: { legend: { labels: { color: '#d1d5db', font: { family: 'monospace', size: 10 } } } } }
-            });
-        }
-
-        initializeCommandCenter();
-
         async function runGlobalProactiveScan() {
             logAIStream("Initializing Global Proactive Scanning Matrix...");
-            
             for (const hotspot of AI_HOTSPOTS) {
                 try {
-                    logAIStream(`Matrix polling atmospheric telemetry for ${hotspot.name}...`);
-                    
                     const res = await fetch(`${backendUrl}/api/ignition_risk?lat=${hotspot.lat}&lon=${hotspot.lon}`);
                     const data = await res.json();
                     
                     if (data.status === "success") {
                         let riskVal = parseFloat(data.ignition_probability);
-                        
                         if (riskVal > 30) {
                             let color = riskVal >= 75 ? '#ff3b30' : '#ff9f0a';
-                            
-                            // 🌍 Custom regional zone size expanded for macro-monitoring
                             const zone = L.circle([hotspot.lat, hotspot.lon], {
-                                color: color,
-                                weight: 1,
-                                fillColor: color,
-                                fillOpacity: 0.15,
-                                radius: 150000 
+                                color: color, weight: 1, fillColor: color, fillOpacity: 0.15, radius: 150000 
                             }).addTo(map);
 
                             let growing = true;
@@ -633,38 +392,186 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
                 } catch (err) {
                     console.error(`Proactive scan failed for ${hotspot.name}`, err);
                 }
-                
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
             logAIStream("<span style='color:var(--neon-green)'>Global Proactive Scan Matrix fully deployed.</span>");
         }
 
-        setTimeout(runGlobalProactiveScan, 5000);
+        async function inspectFire(fire) {
+            const startTime = performance.now();
+            map.setView([fire.lat, fire.lon], 9);
+            
+            if(fire.markerRef) {
+                fire.markerRef.bindPopup(`<b>${fire.title}</b><br><span style='color:var(--neon-cyan);'>Querying multiple orbital APIs...</span>`, { offset: [0, -10] }).openPopup();
+            }
 
-        // 🔥 PHASE 2: HOLOGRAPHIC ORBITAL COMMAND CENTER 🔥
+            if (currentWindLine) map.removeLayer(currentWindLine);
+            logAIStream(`Initiated multipoint sensor sweep for: ${fire.lat.toFixed(2)}, ${fire.lon.toFixed(2)}`);
+
+            try {
+                const [resWind, resTerrain, resAQ] = await Promise.all([
+                    fetch(`${backendUrl}/api/wind?lat=${fire.lat}&lon=${fire.lon}`),
+                    fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=0`),
+                    fetch(`${backendUrl}/api/air_quality?lat=${fire.lat}&lon=${fire.lon}`)
+                ]);
+
+                const wind = await resWind.json();
+                const resTerrainReal = await fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=${wind.direction}`);
+                const terrain = await resTerrainReal.json();
+                const aq = await resAQ.json();
+
+                const endTime = performance.now();
+                logAIStream(`Data fused in ${(endTime - startTime).toFixed(0)}ms. Terrain Alt: ${terrain.elevation_meters}m.`);
+
+                let hazardIndex = Math.round(Math.min(wind.speed * 4.5, 50) + Math.min(fire.density_score * 4.0, 50));
+                hazardIndex = Math.min(Math.round(hazardIndex * terrain.spread_multiplier), 100);
+
+                let threatColor = hazardIndex >= 65 ? "#ff3b30" : (hazardIndex >= 35 ? "#ff9f0a" : "#10b981");
+                const speedKmh = (wind.speed * 3.6).toFixed(1);
+                const projectedSpread = (wind.speed * 0.22 * 24 * terrain.spread_multiplier).toFixed(2);
+                let aqColor = aq.pm2_5 > 50 ? "#ff3b30" : (aq.pm2_5 > 15 ? "#ff9f0a" : "#10b981");
+
+                if(fire.markerRef) {
+                    fire.markerRef.setPopupContent(`
+                        <div style="font-family: monospace; min-width: 290px; font-size: 0.8rem; line-height: 1.5;">
+                            <b style="color: ${threatColor}; font-size: 0.95rem;">${fire.title}</b><br><br>
+                            💨 <span style="color:#a1a1aa;">WIND VECTOR:</span> ${speedKmh} km/h @ ${wind.direction}°<br>
+                            ⛰️ <span style="color:#a1a1aa;">ALTITUDE:</span> ${terrain.elevation_meters} m<br>
+                            🤖 <span style="color:#a1a1aa;">TERRAIN AI:</span> <b style="color:${terrain.spread_multiplier > 1.2 ? '#ff3b30' : '#00f3ff'}">${terrain.terrain_status}</b><br>
+                            ☠️ <span style="color:#a1a1aa;">ATMOSPHERE (PM2.5):</span> <b style="color:${aqColor};">${aq.pm2_5} µg/m³</b><br>
+                            📈 <span style="color:#a1a1aa;">24H PROJECTION:</span> ~${projectedSpread} km linear spread<br>
+                            📊 <span style="color:#a1a1aa;">HAZARD SCORE:</span> <b style="color:${threatColor};">${hazardIndex} / 100</b>
+                        </div>
+                    `);
+                }
+
+                const latOffset = (Math.cos(wind.direction * Math.PI / 180) * (wind.speed / 5));
+                const lonOffset = (Math.sin(wind.direction * Math.PI / 180) * (wind.speed / 5));
+
+                currentWindLine = L.polyline([[fire.lat, fire.lon], [fire.lat + latOffset, fire.lon + lonOffset]], {
+                    color: threatColor, weight: 4, opacity: 0.9, dashArray: '5, 5'
+                }).addTo(map);
+
+            } catch (err) { 
+                logAIStream(`<span style="color:red">ERROR: Packet loss on coordinates ${fire.lat.toFixed(2)}</span>`);
+            }
+        }
+
+        // ==========================================
+        // SIDEBAR & CHARTS
+        // ==========================================
+        function handleSortChange() {
+            currentSortMode = document.getElementById('threat-sort').value;
+            displayedFiresCount = 50; 
+            renderThreatMatrix(true);
+        }
+
+        function renderThreatMatrix(reset = false) {
+            const container = document.getElementById('threat-matrix');
+            if(!container) return;
+            if (reset) container.innerHTML = "";
+
+            const sortedData = [...globalFireData].sort((a, b) => {
+                return currentSortMode === 'desc' ? b.density_score - a.density_score : a.density_score - b.density_score;
+            });
+
+            const currentRenderedCount = container.children.length;
+            const toRender = sortedData.slice(currentRenderedCount, displayedFiresCount);
+
+            toRender.forEach(fire => {
+                let markerColor = fire.density_score >= 8 ? '#dc2626' : (fire.density_score >= 3 ? '#d97706' : '#059669');
+                const card = document.createElement('div');
+                card.className = 'threat-card';
+                card.style.background = `rgba(${fire.density_score >= 8 ? '255,59,48' : '255,159,10'}, 0.05)`;
+                card.style.border = `1px solid rgba(${fire.density_score >= 8 ? '255,59,48' : '255,159,10'}, 0.25)`;
+                card.innerHTML = `<div class="threat-title" style="color: ${markerColor}">⚠️ CLUSTER: ${fire.title}</div><div style="font-size: 0.7rem; color: #a1a1aa;">LAT: ${fire.lat.toFixed(2)} | LON: ${fire.lon.toFixed(2)}</div>`;
+                card.onclick = () => {
+                    if(document.body.className !== 'view-tactical') switchMode('tactical');
+                    inspectFire(fire);
+                };
+                container.appendChild(card);
+            });
+        }
+
+        const rightSidebar = document.getElementById('right-sidebar');
+        if(rightSidebar) {
+            rightSidebar.addEventListener('scroll', function() {
+                if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
+                    if (displayedFiresCount < globalFireData.length) {
+                        displayedFiresCount += 50;
+                        renderThreatMatrix();
+                    }
+                }
+            });
+        }
+
+        let threatChartInstance = null;
+        let carbonChartInstance = null;
+
+        function renderCharts() {
+            if (!globalFireData.length) return;
+            let lowRisk = 0, medRisk = 0, highRisk = 0;
+            globalFireData.forEach(f => {
+                if (f.density_score >= 8) highRisk++;
+                else if (f.density_score >= 3) medRisk++;
+                else lowRisk++;
+            });
+
+            const ctxThreat = document.getElementById('threatChart');
+            if(ctxThreat) {
+                if (threatChartInstance) threatChartInstance.destroy();
+                threatChartInstance = new Chart(ctxThreat.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Critical Outbreaks', 'Elevated Clusters', 'Routine/Isolated'],
+                        datasets: [{ data: [highRisk, medRisk, lowRisk], backgroundColor: ['#ff3b30', '#ff9f0a', '#10b981'], borderWidth: 0 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#d1d5db', font: { family: 'monospace', size: 10 } } } } }
+                });
+            }
+
+            const ctxCarbon = document.getElementById('carbonChart');
+            if(ctxCarbon) {
+                if (carbonChartInstance) carbonChartInstance.destroy();
+                const baseCarbon = (globalFireData.length * 0.14);
+                const pastData = [baseCarbon*0.82, baseCarbon*0.88, baseCarbon*0.91, baseCarbon*0.85, baseCarbon*0.96, baseCarbon*0.98, baseCarbon];
+                carbonChartInstance = new Chart(ctxCarbon.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: ['T-6D', 'T-5D', 'T-4D', 'T-3D', 'T-2D', 'T-1D', 'LAUNCH'],
+                        datasets: [{ label: 'Carbon Injection', data: pastData, borderColor: '#00f3ff', backgroundColor: 'rgba(0, 243, 255, 0.05)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 2 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#6b7280', font: { family: 'monospace' } } }, y: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#6b7280', font: { family: 'monospace' } } } }, plugins: { legend: { labels: { color: '#d1d5db', font: { family: 'monospace', size: 10 } } } } }
+                });
+            }
+        }
+
+        // ==========================================
+        // PHASE 2: 3D HOLOGRAPHIC ORBITAL ENGINE
+        // ==========================================
         function init3DOrbitalCenter() {
             logAIStream("Initializing 3D WebGL Holographic Engine...");
             const container = document.getElementById('orbital-globe-ui');
-            
-            // 1. Build a high-performance 3D Earth
+            if(!container) return;
+
             myGlobe = Globe()(container)
-                .globeImageUrl('//unpkg.com/three-globe/example/img/earth-dark.jpg') // Dark blueprint texture
-                .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png') // Real mountain topography
-                .backgroundColor('#020205') // Deep space void color
+                // Upgraded to a beautiful realistic blue marble texture and starfield background!
+                .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg') 
+                .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+                .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png') 
                 .showAtmosphere(true)
-                .atmosphereColor('#00f3ff') // Cyber glow atmosphere
-                .atmosphereAltitude(0.15)   // 🔒 FIXED ERROR
+                .atmosphereColor('#00f3ff') 
+                .atmosphereAltitude(0.2) 
                 
-                // 2. Map Configuration for Fire Points
+                // Map Configuration for Fire Points
                 .pointLat('lat')
                 .pointLng('lon')
-                // Add extreme glow to critical fires
                 .pointColor(d => d.density_score >= 8 ? '#ff3b30' : (d.density_score >= 3 ? '#ff9f0a' : '#10b981'))
-                .pointAltitude(d => Math.min(d.density_score * 0.04, 0.3)) // Pillar height
-                .pointRadius(0.3) // Fatter neon pillars
-                .pointsTransitionDuration(1500) // Smooth rising animation
+                .pointAltitude(d => Math.min(d.density_score * 0.05, 0.4)) 
+                .pointRadius(0.35) 
+                .pointsTransitionDuration(1500) 
                 
-                // 3. Label/Interactive HUD Overlays
+                // Labels & Interactions
                 .labelText('title')
                 .labelSize(0.6)
                 .labelDotRadius(0.1)
@@ -672,22 +579,107 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
                 .labelResolution(3)
                 .onPointClick(fire => {
                     logAIStream(`Orbital focus shifted to sector: ${fire.title}`);
-                    // Trigger your existing detailed inspection API macro automatically!
                     switchMode('tactical');
                     inspectFire(fire);
                 });
 
-            // 4. Auto-rotate the globe slowly for a cinematic command center look
-            myGlobe.controls().autoRotate = true;
-            myGlobe.controls().autoRotateSpeed = 0.8;
+            // FIXED: Turned off auto-rotation so you have total control
+            myGlobe.controls().autoRotate = false;
             
-            // 5. Adjust the starting camera distance so the globe fills the screen perfectly
+            // Adjust the starting camera distance
             myGlobe.pointOfView({ altitude: 2.2 });
 
-            // Feed the live data arrays straight into WebGL
+            // Call the data injector
             updateGlobeData();
-            logAIStream("<span style='color:var(--neon-green)'>3D Holographic Orbit active and synced with NASA uplink.</span>");
+            logAIStream("<span style='color:var(--neon-green)'>3D Holographic Orbit active and synced.</span>");
         }
+
+        // FIXED: Re-added the missing data injection function
+        function updateGlobeData() {
+            if (!myGlobe || !globalFireData.length) return;
+            myGlobe.pointsData(globalFireData);
+            myGlobe.labelsData(globalFireData);
+        }
+
+        // ==========================================
+        // CORE BOOT SEQUENCE
+        // ==========================================
+        async function initializeCommandCenter() {
+            try {
+                logAIStream("Booting Main Terminal. Establishing NASA EONET uplink...");
+                
+                const [fireRes, satRes] = await Promise.all([
+                    fetch(`${backendUrl}/api/fires`),
+                    fetch(`${backendUrl}/api/satellites`)
+                ]);
+                
+                const data = await fireRes.json();
+                const satData = await satRes.json();
+
+                const satContainer = document.querySelector('.satellite-row')?.parentElement;
+                if(satContainer) {
+                    satContainer.innerHTML = ""; 
+                    if(satData.instruments) {
+                        satData.instruments.forEach(inst => {
+                            satContainer.innerHTML += `<div class="satellite-row"><span>${inst.toUpperCase()}</span><span style="color:var(--neon-green)">SYNCED</span></div>`;
+                        });
+                    }
+                }
+
+                if (data.status === "success") {
+                    document.getElementById('total-fires').innerText = data.total_global;
+                    document.getElementById('kpi-carbon').innerText = (data.total_global * 0.14).toFixed(2) + " MT";
+                    
+                    let highRiskCount = 0;
+                    const tableBody = document.getElementById('table-body-matrix');
+                    if(tableBody) tableBody.innerHTML = "";
+
+                    globalFireData = data.fires.map((fire, index) => {
+                        if (fire.density_score >= 8) highRiskCount++;
+                        let markerColor = fire.density_score >= 8 ? '#dc2626' : (fire.density_score >= 3 ? '#d97706' : '#059669');
+                        
+                        const marker = L.circleMarker([fire.lat, fire.lon], {
+                            radius: fire.density_score >= 8 ? 7 : (fire.density_score >= 3 ? 5 : 4),
+                            color: 'transparent', weight: 15, fillColor: markerColor, fillOpacity: 0.8
+                        }).addTo(map);
+
+                        fire.markerRef = marker;
+                        marker.on('click', function(e) {
+                            L.DomEvent.stopPropagation(e); 
+                            inspectFire(fire);
+                        });
+
+                        if (index < 10 && tableBody) {
+                            const row = document.createElement('tr');
+                            row.style.borderBottom = "1px solid rgba(255,255,255,0.03)";
+                            let flagColor = fire.density_score >= 8 ? "var(--neon-red)" : (fire.density_score >= 3 ? "var(--neon-amber)" : "var(--neon-green)");
+                            let flagText = fire.density_score >= 8 ? "CRITICAL OUTBREAK" : (fire.density_score >= 3 ? "ELEVATED THREAT" : "MONITORED");
+                            
+                            row.innerHTML = `
+                                <td style="padding: 10px 5px; color:#fff; font-weight:bold;">${fire.title}</td>
+                                <td>${fire.lat.toFixed(4)}</td>
+                                <td>${fire.lon.toFixed(4)}</td>
+                                <td style="color:var(--neon-cyan); font-weight:bold;">Tier ${fire.density_score}</td>
+                                <td style="color:${flagColor}; font-weight:bold;">${flagText}</td>
+                            `;
+                            tableBody.appendChild(row);
+                        }
+                        return fire;
+                    });
+
+                    renderThreatMatrix(true);
+                    document.getElementById('kpi-critical').innerText = highRiskCount;
+                    document.getElementById('kpi-risk').innerText = ((highRiskCount / data.total_global) * 100).toFixed(1) + "%";
+                    logAIStream(`Uplink processed ${data.total_global} total thermal events successfully.`);
+                }
+            } catch (error) { 
+                logAIStream(`<span style="color:red">CRITICAL SYSTEM FAILURE: Cannot reach backend.</span>`);
+            }
+        }
+
+        // Start Boot Sequence
+        initializeCommandCenter();
+        setTimeout(runGlobalProactiveScan, 5000);
     </script>
 </body>
 </html>
