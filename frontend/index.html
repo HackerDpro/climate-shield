@@ -432,27 +432,27 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
         // PHASE 3: ASSET ALLOCATION (AIR TANKER)
         // ==========================================
         window.deployAirTanker = function(targetLat, targetLon) {
-            // 1. Locate the specific fire in our global array
             const fire = globalFireData.find(f => f.lat === targetLat && f.lon === targetLon);
-            if (!fire) return;
+            if (!fire || fire.isDeploying) return; // 🔒 LOCK: Prevents double-clicking
 
-            logAIStream(`CRITICAL COMMAND: Air Tanker dispatched to Sector [${targetLat.toFixed(2)}, ${targetLon.toFixed(2)}]`);
+            fire.isDeploying = true; // Lock this specific fire
+            logAIStream(`AIR TANKER EN ROUTE: Sector [${targetLat.toFixed(2)}, ${targetLon.toFixed(2)}]`);
 
-            // 2. Calculate a "Base" starting position (roughly 200km away)
             const baseLat = targetLat - 2.5;
             const baseLon = targetLon - 2.5;
 
-            // 3. Create the airplane marker
+            // Calculate rotation angle
+            const angle = Math.atan2(targetLon - baseLon, targetLat - baseLat) * (180 / Math.PI);
+
             const planeIcon = L.divIcon({
-                html: '<div style="font-size: 22px; filter: drop-shadow(0 0 8px #00f3ff); transform: rotate(45deg);">✈️</div>',
+                html: `<div style="font-size: 24px; transform: rotate(${angle}deg);">✈️</div>`,
                 className: 'custom-plane-icon',
                 iconSize: [30, 30]
             });
             const plane = L.marker([baseLat, baseLon], { icon: planeIcon }).addTo(map);
 
-            // 4. Animate the flight path
             let step = 0;
-            const totalSteps = 40; // Total animation frames
+            const totalSteps = 100; // Smoother movement
             const latStep = (targetLat - baseLat) / totalSteps;
             const lonStep = (targetLon - baseLon) / totalSteps;
 
@@ -461,47 +461,39 @@ const map = L.map('map', { preferCanvas: true }).setView([20, 0], 2);
                 plane.setLatLng([baseLat + (latStep * step), baseLon + (lonStep * step)]);
                 
                 if (step >= totalSteps) {
-                    // 5. Plane arrived! Clear plane and drop water
                     clearInterval(flightInterval);
                     map.removeLayer(plane);
-                    
-                    logAIStream(`Payload released over target. Suppressing thermal signature...`);
-
-                    // 6. Water Drop Ripple Effect
-                    const waterRipple = L.circle([targetLat, targetLon], {
-                        color: '#00f3ff', weight: 2, fillColor: '#00f3ff', fillOpacity: 0.7, radius: 1000
-                    }).addTo(map);
-
-                    let rippleStep = 0;
-                    const rippleInterval = setInterval(() => {
-                        rippleStep++;
-                        waterRipple.setRadius(1000 + (rippleStep * 2500));
-                        waterRipple.setStyle({ fillOpacity: 0.7 - (rippleStep * 0.07) });
-                        
-                        if (rippleStep >= 10) {
-                            clearInterval(rippleInterval);
-                            map.removeLayer(waterRipple);
-                            
-                            // 7. Update Map Data (Downgrade the fire's threat level!)
-                            fire.density_score = Math.max(1, fire.density_score - 4); // Reduce threat
-                            
-                            let newColor = fire.density_score >= 8 ? '#ff3b30' : (fire.density_score >= 3 ? '#ff9f0a' : '#10b981');
-                            fire.markerRef.setStyle({ fillColor: newColor, radius: fire.density_score >= 8 ? 7 : (fire.density_score >= 3 ? 5 : 4) });
-                            
-                            // Clear tactical UI since the threat is mitigated
-                            if (currentWindLine) map.removeLayer(currentWindLine);
-                            if (currentPlume) map.removeLayer(currentPlume);
-                            fire.markerRef.closePopup();
-                            
-                            logAIStream(`<span style="color:var(--neon-green)">MISSION SUCCESS: Sector threat downgraded to Tier ${fire.density_score}.</span>`);
-                            
-                            // Refresh UI Sidebar
-                            renderThreatMatrix(true);
-                        }
-                    }, 60);
+                    executeWaterDrop(fire, targetLat, targetLon);
                 }
-            }, 30); // 30ms per frame for smooth 60fps flight
+            }, 30);
         };
+
+        function executeWaterDrop(fire, lat, lon) {
+            logAIStream(`Payload released. Initiating suppression...`);
+            const waterRipple = L.circle([lat, lon], { color: '#00f3ff', weight: 2, radius: 1000 }).addTo(map);
+
+            let rippleStep = 0;
+            const rippleInterval = setInterval(() => {
+                rippleStep++;
+                waterRipple.setRadius(1000 + (rippleStep * 3000));
+                waterRipple.setStyle({ fillOpacity: 0.7 - (rippleStep * 0.05) });
+                
+                if (rippleStep >= 15) {
+                    clearInterval(rippleInterval);
+                    map.removeLayer(waterRipple);
+                    
+                    fire.density_score = Math.max(1, fire.density_score - 4);
+                    fire.isDeploying = false; // Unlock
+                    
+                    // Visual update
+                    let newColor = fire.density_score >= 8 ? '#ff3b30' : (fire.density_score >= 3 ? '#ff9f0a' : '#10b981');
+                    fire.markerRef.setStyle({ fillColor: newColor });
+                    
+                    logAIStream(`<span style="color:var(--neon-green)">SUCCESS: Sector threat level adjusted to ${fire.density_score}.</span>`);
+                    renderThreatMatrix(true);
+                }
+            }, 80);
+        }
 
         function handleSortChange() {
             currentSortMode = document.getElementById('threat-sort').value;
