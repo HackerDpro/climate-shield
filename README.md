@@ -1,73 +1,79 @@
-# The README file is divided in two sections, the first one is a summary made by AI (Gemini 3.1 Pro), the second section is a more detailed blog written by me.
+# The README file is divided in two sections, the first one is a summary of the project, the second section is a more detailed blog written (not complete).
 
-# 🌍 CLIMATE SHIELD: Planetary Multi-Hazard Observation Terminal
+# CLIMATE SHIELD
 
-**Climate Shield** is a high-performance, real-time command dashboard designed to monitor, predict, and analyze global environmental threats. Moving beyond simple reactive map markers, Climate Shield ingests raw multi-spectral satellite telemetry, cross-references it with live atmospheric and topographical data, and utilizes empirical physics equations to predict disaster spread and logistical resource requirements.
+I created Climate Shield because I had in mind the idea of creating a dashboard that could show how the world is going, what is happening, and what might happen.
+I also learned a lot of new things about the climate in the process making this.
 
-[Live Demo](https://climate-shield.netlify.app/)
+[Test it here](https://climate-shield.netlify.app/)
 
----
+-------------
 
-## 🤖 AI Collaboration Statement
-*The technical architecture, asynchronous Web Worker threading, and scientific Python physics algorithms for this platform were developed in direct collaboration with **Google Gemini**.* AI was utilized as a pair-programming architect to:
-1. Translate standard NASA/USGS JSON structures into high-performance `Float32Array` WebGL inputs.
-2. Formulate real-world thermodynamic models (e.g., Byram's Fireline Intensity, Volumetric Soil Hydrology).
-3. Debug asynchronous CORS mapping errors and optimize zero-lag browser performance for massive dataset rendering.
+## First I want to make something clear, I did use AI to help me with it, here's how and what for:
 
----
+1. To translate standard NASA/USGS JSON structures into `Float32Array` WebGL inputs for the globe (orbital).
+2. To formulate calculations (I am just a programmer, not a scientist. I am unknown of the formules and calculations for predictions I show in my web).
+3. To debug errors/bugs and optimize no-lag browser performance for all the data's being calculated.
+4. Not always but I did use AI for styling elements
 
-## 💻 The Three Command Views
-Climate Shield operates across three distinct visual engines:
-1. **TACTICAL (2D Command):** The primary geographic interface. Click on any global threat to open its HUD, fetch localized weather vectors, and calculate empirical hazard scores.
-2. **ORBITAL (3D WebGL):** A hardware-accelerated, 3D globe featuring physical height-mapped thermal pillars.
-3. **TELEMETRY (Analytics):** A pure-data dashboard rendering planetary Key Performance Indicators (KPIs), global carbon emission estimates, and threat threshold charts.
+----------
 
----
+## I split the web up in 3 sections/pages
+1. **TACTICAL (2D dashboard):** This is the primary page where you should go to if you to have all data visualized but also want more information, a bit like a all-in-one dashboard.
+2. **ORBITAL (3D WebGL globe):** This is where you go if you want just a visualisation, you see a globe of the earth and pilars having the color of the category of a fire and the height depending on the density of a fire.
+3. **TELEMETRY ((raw) data):** This is where to go when you are some kind of scientist who just wants (raw) data, Every time I add some new data API's or similar I will try to also categorise the data in here (for nerds)
 
-## 📖 Scientific Feature Manual (How to Use)
-Climate Shield is designed for Earth System Scientists. Here is a breakdown of the live environmental physics and tracking arrays built into the system:
+----------
 
-### 1. Pre-Crime Predictive Scanning (Ignition AI)
-* **How to use:** Click anywhere on an empty landmass on the Tactical Map. 
-* **What it does:** The system draws an 80km scanning radius and pings Open-Meteo and OpenWeatherMap. It cross-references current Temperature, Wind Speed, Relative Humidity, and **Volumetric Soil Moisture**. 
-* **The Science:** By analyzing soil dryness alongside heat and wind, the AI calculates a literal percentage-based probability of a wildfire igniting in that exact sector within 48 hours. Heavy live precipitation immediately suppresses the risk score.
+## How to use:
+I primarly made this web with the idea of it being for some weather or NASA scientists, but I tried my best also to make it understandable for non-scientists, (like me). 
 
-### 2. Live Fire Logistics & Tactical Routing
-* **How to use:** Click on any active Wildfire marker. Click the "Calculate Resource Requirements" button.
-* **What it does:** Generates a real-time engineering report.
-* **The Science:** * **Uphill Alignment:** Fire spreads drastically faster uphill as heat rises and pre-bakes the fuel. Our backend fetches the exact terrain elevation and slope angle to calculate a spread multiplier.
-  * **Fireline Intensity & Suppressants:** Calculates the thermal output ($kW/m$) and the literal volume of water (in Liters) required to break the thermal feedback loop based on the fire's density.
+### Fire risk from a point
+* **How to use:** Click anywhere on an empty place in the map (only in TACTICAL). 
+* **What it does:** The system draws an 80km radius around the point and asks Open-Meteo and OpenWeatherMap. It's current Temperature, Wind Speed, Relative Humidity, and Soil Moisture. 
+* **The Science:** By analyzing soil dryness with heat and wind, the AI calculates a percentage of fire-risk-probability within 48 hours. (keeps updating live)
 
-### 3. Multi-Spectral Sensor Arrays (Bottom Dock)
-Toggle these layers to observe cross-sphere planetary interactions. Data is processed using a background CPU Web Worker to ensure zero UI lag even with thousands of data points.
+### Live fire
+* **How to use:** Click on any active fire marker. Click the "Calculate Resource Requirements" button.
+* **What it does:** It generates a real-time report.
+* **The Science:** 
+  * *Uphill Alignment:* Fire spreads much faster uphill. The backend finds the exact terrain elevation and slope angle to calculate a spread multiplier.
+  * *Fire density:* The system also calculates the thermal output and the volume of water (in Liters) required to put the fire out based on the fire's density.
 
-* **⚠️ Mudslides (Landslides):** When wildfires burn a mountain, roots die and soil becomes hydrophobic (glass-like). This radar finds active fires located on steep slopes (>600m elevation) and flags them as Critical Mudslide Risk Zones for when the next rainstorm hits.
-* **🌀 Cyclones (Hurricanes):** Hurricanes are giant heat engines fueled by ocean water warmer than 26.5°C. This sensor tracks Deep-Ocean Sea Surface Temperature (SST) anomalies to visualize where future storms will spawn.
-* **💥 Earthquakes:** Taps directly into the USGS live lithospheric feed, isolating and mapping significant tectonic fractures (Magnitude > 4.5).
-* **🌋 Ash Clouds (Volcanoes):** Ingests NASA EONET data to track stratospheric ash injections, which pose severe threats to global aviation and regional climate cooling.
-* **🛰️ Satellite Heat (Raw Radiometry):** Bypasses standard fire warnings to ingest raw CSV data from NASA MODAPS. It maps **Fire Radiative Power (FRP)** in Megawatts, allowing scientists to measure the exact physical thermal output of a disaster, not just its location.
+### Extra sensors (Bottom Dock)
+* **Mudslides (Landslides):** When fires burn a mountain, roots die and soil becomes hydrophobic (you can compare it like glass). This radar finds active fires located on steep slopes (>600m) and shows them as Mudslide Risk Zones for when the next rainstorm hits.
+* **Cyclones (Hurricanes):** Hurricanes are giant, fueled by ocean water warmer than 26.5°C. This sensor tracks Deep-Ocean Sea Surface Temperature (SST) to visualize where future storms will spawn.
+* **Earthquakes:** This sensor isolates and maps significant tectonic fractures (Magnitude > 4.5).
+* **Ash Clouds (Volcanoes):** NASA EONET data tracks volcano ash clouds, which make severe threats to aviation and climate cooling.
+* **Satellite Heat (Raw Radiometry):** Shows fires that aren't that big, telling you the intensity (FRP) and heat (in Kelvin). This is only avaible where they have sensors for it, not everywhere.
 
----
+----------
 
-## 🛠️ Technical Stack
-* **Frontend:** Vanilla JavaScript, HTML5 Canvas, Leaflet.js, Globe.gl (Three.js/WebGL), Chart.js
-* **Backend Pipeline:** FastAPI (Python), Hosted on Render
-* **Performance:** Multi-threaded Web Workers, asynchronous API fetching, Blob URLs.
-* **Live API Integrations:** * *NASA EONET* (Volcanoes, Base Fires)
+## Stats of the code
+* **Frontend (hosted on Netlify):** Vanilla JavaScript, HTML5 Canvas, Leaflet.js, Globe.gl (Three.js/WebGL), Chart.js
+* **Backend (Hosted on Render):** FastAPI (Python)
+* **API's** 
+  * *NASA EONET* (Volcanoes, Fires, ...)
   * *NASA FIRMS MODAPS* (Raw Radiometry/FRP)
-  * *USGS* (Real-time Seismic)
-  * *OpenWeatherMap* (Atmospheric Vectors)
-  * *Open-Meteo* (Soil Hydrology, PM2.5 Air Quality, Topographical Elevation)
+  * *USGS*
+  * *OpenWeatherMap* (Weather data)
+  * *Open-Meteo* (Soil Hydrology, Air Quality, Elevation)
 
----
+----------
 
-## 🚀 How to Run Locally
+## In the future:
+* Currently I am working on finding more usefull data and being able to display it without overloading the whole web or having a messy dashboard full of unnecesary things.
 
+----------
+
+## Run it yourself
 1. Clone the repository: `git clone https://github.com/HackerDpro/climate-shield`
 2. Set up your backend environment variables in an `.env` file:
    ```env
    OWM_KEY=your_open_weather_map_key
    FIRMS_KEY=your_nasa_firms_map_key
+3. Start with the backend with:
+   *uvicorn main:app --reload* (or look in the file terminal.txt)
 
 
 
