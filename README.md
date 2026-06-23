@@ -4,7 +4,7 @@
 
 **Climate Shield** is a high-performance, real-time command dashboard designed to monitor, predict, and analyze global environmental threats. Moving beyond simple reactive map markers, Climate Shield ingests raw multi-spectral satellite telemetry, cross-references it with live atmospheric and topographical data, and utilizes empirical physics equations to predict disaster spread and logistical resource requirements.
 
-[Live Demo](https://climate-shield.netlify.app/) *(Link your actual Netlify/Vercel URL here)*
+[Live Demo](https://climate-shield.netlify.app/)
 
 ---
 
@@ -19,7 +19,7 @@
 ## 💻 The Three Command Views
 Climate Shield operates across three distinct visual engines:
 1. **TACTICAL (2D Command):** The primary geographic interface. Click on any global threat to open its HUD, fetch localized weather vectors, and calculate empirical hazard scores.
-2. **ORBITAL (3D WebGL):** A hardware-accelerated, 3D rotating globe featuring real-time solar shading (Day/Night terminator lines) and physical height-mapped thermal pillars.
+2. **ORBITAL (3D WebGL):** A hardware-accelerated, 3D globe featuring physical height-mapped thermal pillars.
 3. **TELEMETRY (Analytics):** A pure-data dashboard rendering planetary Key Performance Indicators (KPIs), global carbon emission estimates, and threat threshold charts.
 
 ---
@@ -34,10 +34,9 @@ Climate Shield is designed for Earth System Scientists. Here is a breakdown of t
 
 ### 2. Live Fire Logistics & Tactical Routing
 * **How to use:** Click on any active Wildfire marker. Click the "Calculate Resource Requirements" button.
-* **What it does:** Generates a real-time engineering report and draws a Safe Evacuation Corridor.
+* **What it does:** Generates a real-time engineering report.
 * **The Science:** * **Uphill Alignment:** Fire spreads drastically faster uphill as heat rises and pre-bakes the fuel. Our backend fetches the exact terrain elevation and slope angle to calculate a spread multiplier.
   * **Fireline Intensity & Suppressants:** Calculates the thermal output ($kW/m$) and the literal volume of water (in Liters) required to break the thermal feedback loop based on the fire's density.
-  * **Evacuation Routing:** Uses the Open Source Routing Machine (OSRM) to find the nearest drivable road that moves *perpendicular or opposite* to the live wind direction, ensuring safe civilian egress.
 
 ### 3. Multi-Spectral Sensor Arrays (Bottom Dock)
 Toggle these layers to observe cross-sphere planetary interactions. Data is processed using a background CPU Web Worker to ensure zero UI lag even with thousands of data points.
@@ -59,13 +58,12 @@ Toggle these layers to observe cross-sphere planetary interactions. Data is proc
   * *USGS* (Real-time Seismic)
   * *OpenWeatherMap* (Atmospheric Vectors)
   * *Open-Meteo* (Soil Hydrology, PM2.5 Air Quality, Topographical Elevation)
-  * *OSRM* (Dynamic Road Routing)
 
 ---
 
 ## 🚀 How to Run Locally
 
-1. Clone the repository: `git clone [url]`
+1. Clone the repository: `git clone https://github.com/HackerDpro/climate-shield`
 2. Set up your backend environment variables in an `.env` file:
    ```env
    OWM_KEY=your_open_weather_map_key
