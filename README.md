@@ -5,8 +5,10 @@
 I created Climate Shield because I had in mind the idea of creating a dashboard that could show how the world is going, what is happening, and what might happen.
 I also learned a lot of new things about the climate in the process making this.
 
-[Test it here](https://climate-shield.netlify.app/) (I use the free tier of render for the backend so you may need to reload multiple times if the server is asleep (or check the network setting of the page))
+[Test it here](https://climate-shield.netlify.app/) (I use the free tier of render for the backend so you may need to reload multiple times if the server is asleep)
 
+-------------
+![Climate Shield Dashboard](screenshot.png)
 -------------
 
 ## First I want to make something clear, I did use AI to help me with it, here's how and what for:
@@ -74,9 +76,6 @@ I primarly made this web with the idea of it being for some weather or NASA scie
    FIRMS_KEY=your_nasa_firms_map_key
 3. Start with the backend with:
    *uvicorn main:app --reload* (or look in the file terminal.txt)
-
-
-![Climate Shield Dashboard](screenshot.png)
 
 
 ## Little unfiltered blog (may contain some errors and be boring to read):
