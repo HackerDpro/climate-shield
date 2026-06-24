@@ -76,7 +76,7 @@ I primarly made this web with the idea of it being for some weather or NASA scie
    *uvicorn main:app --reload* (or look in the file terminal.txt)
 
 
-
+![Climate Shield Dashboard](screenshot.png)
 
 
 ## Little unfiltered blog (may contain some errors and be boring to read):
