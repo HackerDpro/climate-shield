@@ -10,27 +10,29 @@
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
     <script src="https://unpkg.com/globe.gl@2.27.2/dist/globe.gl.min.js"></script>
 
     <style>
       :root {
-        --bg-primary: #06080c;
-        --bg-panel: rgba(10, 15, 24, 0.85);
-        --neon-cyan: #00f3ff;
-        --neon-red: #ff3b30;
+        --bg-primary: #0a0d14;
+        --bg-panel: rgba(15, 20, 30, 0.9);
+        --neon-cyan: #00e5ff; 
+        --neon-red: #ff453a; 
         --neon-amber: #ff9f0a;
-        --neon-green: #10b981;
-        --text-main: #d1d5db;
-        --border-tech: 1px solid rgba(0, 243, 255, 0.15);
+        --neon-green: #32d74b; 
+        --text-main: #e5e7eb;
+        --border-tech: 1px solid rgba(0, 229, 255, 0.2);
       }
 
       * {
         box-sizing: border-box;
       }
 
-      /* --- CYBERPUNK SCROLLBARS --- */
+      /* --- SCROLLBARS --- */
+      /*
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -46,6 +48,7 @@
       ::-webkit-scrollbar-thumb:hover {
         background: rgba(0, 243, 255, 0.6);
       }
+      */
 
       body,
       html {
@@ -54,7 +57,7 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        font-family: "Courier New", Courier, monospace;
+        font-family: 'Roboto';
         background-color: var(--bg-primary);
         color: var(--text-main);
       }
@@ -72,7 +75,7 @@
         padding: 6px 12px;
         border-radius: 6px;
         border: var(--border-tech);
-        backdrop-filter: blur(10px);
+        /* backdrop-filter: blur(10px); */
       }
       .nav-btn {
         background: transparent;
@@ -82,7 +85,7 @@
         cursor: pointer;
         font-family: monospace;
         font-weight: bold;
-        transition: all 0.2s ease;
+        /* transition: all 0.2s ease; */
         border-radius: 4px;
         letter-spacing: 1px;
         font-size: 0.8rem;
@@ -129,7 +132,7 @@
 
       .sidebar {
         background: var(--bg-panel);
-        backdrop-filter: blur(15px);
+        /* backdrop-filter: blur(15px); */
         border-right: var(--border-tech);
         display: flex;
         flex-direction: column;
@@ -169,11 +172,12 @@
         z-index: 50;
         padding: 80px 30px 30px 30px;
         overflow-y: auto;
-        background-image: radial-gradient(
+        /* background-image: radial-gradient(
           circle at center,
           rgba(0, 243, 255, 0.03) 0%,
           transparent 80%
-        );
+        ); */
+        background-color: #0d1117;
       }
 
       .telemetry-grid {
@@ -229,7 +233,7 @@
         padding: 12px;
         border-radius: 4px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        /* transition: all 0.2s ease; */
       }
       .threat-card:hover {
         transform: translateX(-4px);
@@ -249,7 +253,7 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.03);
       }
 
-      .cyber-log {
+      .log {
         background: rgba(0, 0, 0, 0.4);
         border: 1px solid rgba(0, 243, 255, 0.05);
         padding: 10px;
@@ -307,8 +311,8 @@
         border: var(--border-tech);
       }
 
-      /* 🔒 CUSTOM CYBERPUNK CHECKBOXES */
-      .cyber-checkbox {
+
+      .checkbox {
         appearance: none;
         -webkit-appearance: none;
         width: 16px;
@@ -319,13 +323,13 @@
         cursor: pointer;
         position: relative;
         outline: none;
-        transition: all 0.2s ease;
+        /* transition: all 0.2s ease; */
       }
-      .cyber-checkbox:checked {
+      .checkbox:checked {
         background: currentColor;
         box-shadow: 0 0 10px currentColor;
       }
-      .cyber-checkbox:checked::after {
+      .checkbox:checked::after {
         content: "✔";
         position: absolute;
         top: -2px;
@@ -337,7 +341,7 @@
     </style>
   </head>
 
-  <body class="view-tactical">
+  <body class="view-tactical" onload="startTime()">
     <div id="top-nav">
       <button
         class="nav-btn active"
@@ -392,7 +396,7 @@
           </div>
 
           <h2>Real-Time Stream</h2>
-          <div class="cyber-log" id="cyber-stream">
+          <div class="log" id="stream">
             <div>[SYS] Listening for planetary hotspot signature flags...</div>
           </div>
         </div>
@@ -465,7 +469,7 @@
               >
                 <input
                   type="checkbox"
-                  class="cyber-checkbox"
+                  class="checkbox"
                   style="color: #bf5af2; margin-right: 8px"
                   onchange="
                     window.activeSensors.mudslide = this.checked;
@@ -486,7 +490,7 @@
               >
                 <input
                   type="checkbox"
-                  class="cyber-checkbox"
+                  class="checkbox"
                   style="color: #0a84ff; margin-right: 8px"
                   onchange="
                     window.activeSensors.cyclone = this.checked;
@@ -507,7 +511,7 @@
               >
                 <input
                   type="checkbox"
-                  class="cyber-checkbox"
+                  class="checkbox"
                   style="color: #ff9f0a; margin-right: 8px"
                   onchange="
                     window.activeSensors.lithosphere = this.checked;
@@ -528,7 +532,7 @@
               >
                 <input
                   type="checkbox"
-                  class="cyber-checkbox"
+                  class="checkbox"
                   style="color: #ff3b30; margin-right: 8px"
                   onchange="
                     window.activeSensors.volcano = this.checked;
@@ -549,7 +553,7 @@
               >
                 <input
                   type="checkbox"
-                  class="cyber-checkbox"
+                  class="checkbox"
                   style="color: #00f3ff; margin-right: 8px"
                   onchange="
                     window.activeSensors.firms = this.checked;
@@ -563,26 +567,26 @@
         </div>
 
         <div class="sidebar" id="right-sidebar">
-          <div
-            style="
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-end;
-              margin-bottom: 10px;
-            "
-          >
-            <h2 style="margin: 0; border: none; padding: 0">THREATS</h2>
-            <select
-              class="sort-select"
-              id="threat-sort"
-              onchange="handleSortChange()"
-            >
-              <option value="desc">Danger: High - Low</option>
-              <option value="asc">Danger: Low - High</option>
-            </select>
-          </div>
-          <div class="threat-list" id="threat-matrix"></div>
-        </div>
+  <div id="clock" style="
+    font-size:2rem;
+    font-weight: bold;
+    text-align: center;
+    padding: 10px 0;
+    margin-bottom: 15px;
+    letter-spacing: 3px;
+    border: 1px solid;
+    border-radius: 4px;"></div>
+
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
+    <h2 style="margin: 0; border: none; padding: 0">THREATS</h2>
+    <select class="sort-select" id="threat-sort" onchange="handleSortChange()">
+      <option value="desc">Danger: High - Low</option>
+      <option value="asc">Danger: Low - High</option>
+    </select>
+  </div>
+  <div class="threat-list" id="threat-matrix"></div>
+</div>
+
       </div>
 
       <div id="telemetry-dashboard">
@@ -855,9 +859,15 @@
           if (!myGlobe) {
             init3DOrbitalCenter();
           }
-          // ALWAYS update the globe when switching to orbital so it catches any background sensor data!
+          
+          // --- THE ORBITAL CLEANUP FIX ---
           if (myGlobe) {
+            // Clear any old shapes to prevent clutter
+            myGlobe.pathsData([]); 
+            myGlobe.customLayerData([]);
             updateGlobeData();
+            // Re-center the camera for a clean view
+            myGlobe.pointOfView({ altitude: 2.3 }, 600); 
           }
 
           setTimeout(() => {
@@ -872,7 +882,7 @@
       }
 
       function logAIStream(message) {
-        const stream = document.getElementById("cyber-stream");
+        const stream = document.getElementById("stream");
         const entry = document.createElement("div");
         const timestamp = new Date()
           .toISOString()
@@ -1060,6 +1070,22 @@
             </div>
         `);
       };
+
+      function startTime() {
+        const today = new Date();
+        let h = today.getHours();
+        let m = today.getMinutes();
+        let s = today.getSeconds();
+        m = checkTime(m);
+        s = checkTime(s);
+        document.getElementById("clock").innerHTML = h + ":" + m + ":" + s;
+        setTimeout(startTime, 1000)
+      }
+
+      function checkTime(i) {
+        if (i < 10) {i = "0" + i};
+        return i;
+      }
 
       function handleSortChange() {
         currentSortMode = document.getElementById("threat-sort").value;
@@ -1808,55 +1834,6 @@
           analyticsWorker.postMessage({ action: "parse_firms", rawData: data });
         } catch (err) {}
       };
-      function switchView(viewName) {
-    currentView = viewName;
-
-    // Toggle panel visibility
-    const leftPanel = document.getElementById('left-panel');
-    const rightPanel = document.getElementById('right-panel');
-    const mapContainer = document.getElementById('map-container');
-    const globeContainer = document.getElementById('globe-container');
-    const telemetryContainer = document.getElementById('telemetry-view');
-
-    // Reset view visibility defaults
-    leftPanel.style.display = 'flex';
-    rightPanel.style.display = 'flex';
-    mapContainer.style.style.display = 'none';
-    globeContainer.style.display = 'none';
-    if(telemetryContainer) telemetryContainer.style.display = 'none';
-
-    if (viewName === 'tactical') {
-        mapContainer.style.display = 'block';
-        setTimeout(() => map.invalidateSize(), 200);
-    } else if (viewName === 'orbital') {
-        // HIDE THE FLANKING PANELS FOR THE CLEAN ORBITAL LOOK
-        leftPanel.style.display = 'none';
-        rightPanel.style.display = 'none';
-        globeContainer.style.style.display = 'block';
-        
-        // --- FIX: CLEAR EXTRA OVERLAYS / CLUTTER LINES IN ORBITAL MODE ---
-        if (myGlobe) {
-            // Remove any old custom paths, orbital paths, or custom HTML markers that leak errors
-            myGlobe.pathsData([]); 
-            myGlobe.customLayerData([]);
-            
-            // Keep ONLY the core high-performance data streams (Points and Rings)
-            updateGlobeData(); 
-            
-            // Re-center and adjust camera for optimal standalone laptop/monitor framing
-            myGlobe.pointOfView({ altitude: 2.3 }, 600);
-        }
-    } else if (viewName === 'telemetry') {
-        // Telemetry expansion logic...
-        leftPanel.style.display = 'none';
-        rightPanel.style.display = 'none';
-        if(telemetryContainer) telemetryContainer.style.display = 'grid';
-    }
-
-    // Update active state in nav navigation
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-    event?.target?.classList.add('active');
-}
     </script>
   </body>
 </html>
