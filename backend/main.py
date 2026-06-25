@@ -33,7 +33,6 @@ def get_satellite_sources():
         res = requests.get(url, timeout=5)
         if res.status_code == 200:
             sources = res.json().get("sources", [])
-            # Return real, dynamic data
             return {"status": "success", "instruments": [s['id'] for s in sources[:8]]}
     except Exception:
         pass
@@ -155,13 +154,14 @@ def get_nasa_events(category: str):
                 geometry = event.get('geometry', [])
                 if not geometry: continue
                 coords = geometry[0].get('coordinates', [])
-                # EONET sometimes returns polygons, we just want the primary point
                 if isinstance(coords[0], list):
                     coords = coords[0][0]
                 if len(coords) < 2: continue
                 lon, lat = coords[0], coords[1]
                 clean_events.append({"title": title, "lat": lat, "lon": lon, "category": category})
             return {"status": "success", "total": len(clean_events), "events": clean_events}
+        elif response.status_code == 503:
+            return {"status": "error", "message": "NASA EONET API 503: Service Unavailable / Overloaded."}
         return {"status": "error", "message": f"NASA API Error: {response.status_code}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -181,10 +181,12 @@ def calculate_ignition_risk(lat: float, lon: float):
         humidity = weather_data["main"]["humidity"]
         wind_speed_kmh = weather_data["wind"]["speed"] * 3.6
 
-        url_soil = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=precipitation,soil_moisture_0_to_7cm"
-        res_soil = requests.get(url_soil, timeout=5).json().get("current", {})
-        soil_moisture = res_soil.get("soil_moisture_0_to_7cm", 0.5)
-        precipitation = res_soil.get("precipitation", 0.0)
+        # FIXED: Open-Meteo moved soil_moisture to the hourly array. We extract the first hour [0]
+        url_soil = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=soil_moisture_0_to_7cm,precipitation&forecast_days=1"
+        res_soil = requests.get(url_soil, timeout=5).json().get("hourly", {})
+        
+        soil_moisture = res_soil.get("soil_moisture_0_to_7cm", [0.5])[0]
+        precipitation = res_soil.get("precipitation", [0.0])[0]
 
         temp_factor = min(temp_c / 40.0, 1.0) * 0.35 
         wind_factor = min(wind_speed_kmh / 50.0, 1.0) * 0.25 
@@ -202,8 +204,8 @@ def calculate_ignition_risk(lat: float, lon: float):
 
 @app.get("/api/tle")
 def get_satellite_orbits():
-    """PHASE 3: Fetches Two-Line Elements for live orbital propagation"""
-    url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle"
+    """PHASE 3: Fetches Two-Line Elements. Switched to 'resource' for Landsat, Sentinel, Terra, Aqua"""
+    url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=resource&FORMAT=tle"
     try:
         res = requests.get(url, timeout=10)
         if res.status_code == 200:
@@ -215,15 +217,16 @@ def get_satellite_orbits():
 @app.get("/api/biomass")
 def get_biomass_data(lat: float, lon: float):
     """PHASE 5: Fuel Moisture & Predictive Bio-Mass Matrix"""
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=soil_moisture_0_to_7cm,evapotranspiration,vapor_pressure_deficit"
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=soil_moisture_0_to_7cm,evapotranspiration,vapor_pressure_deficit&forecast_days=1"
     try:
         res = requests.get(url, timeout=5)
         if res.status_code == 200:
-            data = res.json().get('current', {})
+            data = res.json().get('hourly', {})
             
-            sm = data.get("soil_moisture_0_to_7cm", 0.5)
-            et = data.get("evapotranspiration", 0)
-            vpd = data.get("vapor_pressure_deficit", 0)
+            # Extract first hour [0] from arrays
+            sm = data.get("soil_moisture_0_to_7cm", [0.5])[0]
+            et = data.get("evapotranspiration", [0])[0]
+            vpd = data.get("vapor_pressure_deficit", [0])[0]
             
             drought_index = max(0, min(100, ((0.5 - sm) * 100) + (vpd * 10)))
             
@@ -240,5 +243,55 @@ def get_biomass_data(lat: float, lon: float):
                 "health_status": health_status
             }
         return {"status": "error", "message": "Bio-Mass telemetry offline."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/earthquakes")
+def get_earthquakes():
+    """Fetches USGS Real-Time Lithospheric Data (> 4.5 Mag)"""
+    url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson"
+    try:
+        res = requests.get(url, timeout=5)
+        return res.json()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/volcanoes")
+def get_volcanoes():
+    """Fetches NASA EONET Volcanic Eruptions & Ash Advisories"""
+    url = "https://eonet.gsfc.nasa.gov/api/v3/events?category=volcanoes&status=open"
+    try:
+        res = requests.get(url, timeout=5)
+        return res.json()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/raw_firms")
+def get_raw_firms():
+    """Parses Raw NASA MODAPS Multi-Spectral Data (Requires FIRMS_KEY)"""
+    if not FIRMS_KEY:
+        return {"status": "error", "message": "Missing NASA FIRMS Key in Render Environment."}
+    
+    url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{FIRMS_KEY}/VIIRS_SNPP_NRT/world/1"
+    try:
+        res = requests.get(url, timeout=10)
+        if res.status_code != 200:
+            return {"status": "error", "message": "FIRMS API rejected connection."}
+        
+        csv_reader = csv.DictReader(StringIO(res.text))
+        thermal_points = []
+        for index, row in enumerate(csv_reader):
+            if index > 2000: break # Limit payload size to maintain extreme high performance
+            try:
+                thermal_points.append({
+                    "lat": float(row["latitude"]),
+                    "lon": float(row["longitude"]),
+                    "brightness": float(row["bright_ti4"]),
+                    "frp": float(row["frp"]),
+                    "confidence": row["confidence"]
+                })
+            except ValueError:
+                continue
+        return {"status": "success", "data": thermal_points}
     except Exception as e:
         return {"status": "error", "message": str(e)}
