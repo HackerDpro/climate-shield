@@ -7,7 +7,6 @@ import csv
 from io import StringIO
 from collections import Counter
 from dotenv import load_dotenv
-from datetime import datetime
 
 load_dotenv()
 
@@ -24,12 +23,9 @@ app.add_middleware(
 # 🔒 SECURE SERVER ENVIRONMENT VARIABLES
 OWM_KEY = os.getenv("OWM_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
-FIRMS_KEY = os.getenv("FIRMS_KEY") 
+FIRMS_KEY = os.getenv("FIRMS_KEY") # NEW: For Raw Spectral Data
 
-# ==========================================================
-# BASE COMMAND CENTER APIS
-# ==========================================================
-
+# --- EXISTING ENDPOINTS (KEPT INTACT) ---
 @app.get("/api/satellites")
 def get_satellite_sources():
     url = "https://eonet.gsfc.nasa.gov/api/v3/sources"
@@ -59,21 +55,15 @@ def get_wind_data(lat: float, lon: float):
 
 @app.get("/api/air_quality")
 def get_air_quality(lat: float, lon: float):
-    url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&current=pm2_5,carbon_monoxide,nitrogen_dioxide,aerosol_optical_depth"
+    url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&current=pm2_5,carbon_monoxide"
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
             data = response.json().get('current', {})
-            return {
-                "status": "success", 
-                "pm2_5": data.get("pm2_5", 0), 
-                "co": data.get("carbon_monoxide", 0),
-                "no2": data.get("nitrogen_dioxide", 0),
-                "aod": data.get("aerosol_optical_depth", 0)
-            }
+            return {"status": "success", "pm2_5": data.get("pm2_5", 0), "co": data.get("carbon_monoxide", 0)}
     except Exception:
         pass
-    return {"status": "offline"}
+    return {"status": "offline", "pm2_5": "N/A", "co": "N/A"}
 
 @app.get("/api/analyze_terrain")
 def analyze_terrain(lat: float, lon: float, wind_dir: float):
@@ -221,12 +211,14 @@ def get_raw_firms():
     if not FIRMS_KEY:
         return {"status": "error", "message": "Missing NASA FIRMS Key in Render Environment."}
     
+    # Using the VIIRS SNPP 24-hour global summary for high-res thermal vectors
     url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{FIRMS_KEY}/VIIRS_SNPP_NRT/world/1"
     try:
         res = requests.get(url, timeout=10)
         if res.status_code != 200:
             return {"status": "error", "message": "FIRMS API rejected connection."}
         
+        # Parse the raw CSV into JSON payload for the frontend Web Worker
         csv_reader = csv.DictReader(StringIO(res.text))
         thermal_points = []
         for index, row in enumerate(csv_reader):
@@ -235,61 +227,12 @@ def get_raw_firms():
                 thermal_points.append({
                     "lat": float(row["latitude"]),
                     "lon": float(row["longitude"]),
-                    "brightness": float(row["bright_ti4"]),
-                    "frp": float(row["frp"]),
+                    "brightness": float(row["bright_ti4"]), # Temperature in Kelvin
+                    "frp": float(row["frp"]),               # Fire Radiative Power (Megawatts)
                     "confidence": row["confidence"]
                 })
             except ValueError:
                 continue
         return {"status": "success", "data": thermal_points}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-# =================================================================
-# 🛰️ NEW: THE 5 ADVANCED PHASES (BIOMASS, SATELLITE TLE, CLIMATE)
-# =================================================================
-
-@app.get("/api/tle")
-def get_satellite_orbits():
-    """PHASE 3: Fetches Two-Line Elements for live orbital propagation"""
-    # CelesTrak weather satellite feed (contains Terra, Aqua, Suomi, NOAA)
-    url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle"
-    try:
-        res = requests.get(url, timeout=10)
-        if res.status_code == 200:
-            return {"status": "success", "tle_data": res.text}
-        return {"status": "error", "message": "CelesTrak rejected connection."}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@app.get("/api/biomass")
-def get_biomass_data(lat: float, lon: float):
-    """PHASE 5: Fuel Moisture & Predictive Bio-Mass Matrix"""
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=soil_moisture_0_to_7cm,evapotranspiration,vapor_pressure_deficit"
-    try:
-        res = requests.get(url, timeout=5)
-        if res.status_code == 200:
-            data = res.json().get('current', {})
-            
-            sm = data.get("soil_moisture_0_to_7cm", 0.5)
-            et = data.get("evapotranspiration", 0)
-            vpd = data.get("vapor_pressure_deficit", 0)
-            
-            # Simulated Keetch-Byram Drought Index (KBDI) logic mapping
-            drought_index = max(0, min(100, ((0.5 - sm) * 100) + (vpd * 10)))
-            
-            health_status = "HEALTHY / MOIST"
-            if drought_index > 75: health_status = "CRITICAL DROUGHT (TINDERBOX)"
-            elif drought_index > 50: health_status = "ELEVATED DRYNESS"
-
-            return {
-                "status": "success",
-                "soil_moisture": sm,
-                "evapotranspiration": et,
-                "vpd": vpd,
-                "drought_index": round(drought_index, 1),
-                "health_status": health_status
-            }
-        return {"status": "error", "message": "Bio-Mass telemetry offline."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
