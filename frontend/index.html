@@ -18,7 +18,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
     <script src="https://unpkg.com/globe.gl@2.27.2/dist/globe.gl.min.js"></script>
-    <!-- PHASE 3: ORBITAL SWARM PROPAGATOR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.3/satellite.min.js"></script>
 
     <style>
@@ -49,7 +48,7 @@
         color: var(--text-main);
       }
 
-      /* Fixed Navigation Header */
+      /* Fixed Navigation Header with Dropdown Support */
       #top-nav {
         position: absolute;
         top: 15px;
@@ -85,6 +84,43 @@
         box-shadow: 0 0 10px rgba(0, 243, 255, 0.15);
       }
 
+      /* NASA-Style Dropdown Menu */
+      .dropdown {
+        position: relative;
+        display: inline-block;
+      }
+      .dropdown-content {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background-color: rgba(10, 15, 24, 0.95);
+        min-width: 220px;
+        box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.8);
+        border: var(--border-tech);
+        border-radius: 4px;
+        padding: 10px;
+        z-index: 2000;
+        font-family: monospace;
+      }
+      .dropdown:hover .dropdown-content {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .dropdown-content label {
+        color: #e5e7eb;
+        font-size: 0.8rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        padding: 4px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .dropdown-content label:hover {
+        color: var(--neon-cyan);
+      }
+
       #app-core {
         position: relative;
         width: 100%;
@@ -113,7 +149,7 @@
       }
       body.view-telemetry #telemetry-dashboard {
         display: flex;
-      } /* Flex for new layout */
+      }
 
       .sidebar {
         background: var(--bg-panel);
@@ -145,7 +181,7 @@
         background: #05070f;
       }
 
-      /* --- NEW PHASE 1 TELEMETRY WORKSPACE --- */
+      /* Telemetry Workspace */
       #telemetry-dashboard {
         display: none;
         position: absolute;
@@ -336,6 +372,7 @@
         cursor: pointer;
         position: relative;
         outline: none;
+        margin-right: 8px;
       }
       .checkbox:checked {
         background: currentColor;
@@ -355,13 +392,66 @@
 
   <body class="view-tactical" onload="startTime()">
     <div id="top-nav">
-      <button
-        class="nav-btn active"
-        onclick="switchMode('tactical')"
-        id="btn-tactical"
-      >
-        TACTICAL
-      </button>
+      <div class="dropdown">
+        <button
+          class="nav-btn active"
+          onclick="switchMode('tactical')"
+          id="btn-tactical"
+        >
+          TACTICAL ▼
+        </button>
+        <div class="dropdown-content">
+          <label style="color: #ff453a"
+            ><input
+              type="checkbox"
+              class="checkbox"
+              style="color: #ff453a"
+              onchange="toggleLayer('wildfires', this.checked)"
+              checked
+            />🔥 Wildfires</label
+          >
+          <label style="color: #ff9f0a"
+            ><input
+              type="checkbox"
+              class="checkbox"
+              style="color: #ff9f0a"
+              onchange="toggleLayer('earthquakes', this.checked)"
+            />💥 Earthquakes</label
+          >
+          <label style="color: #bf5af2"
+            ><input
+              type="checkbox"
+              class="checkbox"
+              style="color: #bf5af2"
+              onchange="toggleLayer('volcanoes', this.checked)"
+            />🌋 Volcanoes</label
+          >
+          <label style="color: #0a84ff"
+            ><input
+              type="checkbox"
+              class="checkbox"
+              style="color: #0a84ff"
+              onchange="toggleLayer('severeStorms', this.checked)"
+            />🌀 Severe Storms</label
+          >
+          <label style="color: #00e5ff"
+            ><input
+              type="checkbox"
+              class="checkbox"
+              style="color: #00e5ff"
+              onchange="toggleLayer('floods', this.checked)"
+            />🌊 Floods</label
+          >
+          <label style="color: #a1a1aa"
+            ><input
+              type="checkbox"
+              class="checkbox"
+              style="color: #a1a1aa"
+              onchange="toggleLayer('seaLakeIce', this.checked)"
+            />🧊 Sea/Lake Ice</label
+          >
+        </div>
+      </div>
       <button class="nav-btn" onclick="switchMode('orbital')" id="btn-orbital">
         ORBITAL
       </button>
@@ -389,21 +479,11 @@
 
           <h2>Satellite Status</h2>
           <div class="metric-box" style="padding: 10px 15px">
-            <div class="satellite-row">
-              <span>EOS-AM1 (TERRA)</span
-              ><span style="color: var(--neon-green)">ONLINE</span>
-            </div>
-            <div class="satellite-row">
-              <span>EOS-PM1 (AQUA)</span
-              ><span style="color: var(--neon-green)">ONLINE</span>
-            </div>
-            <div class="satellite-row">
-              <span>SUOMI NPP</span
-              ><span style="color: var(--neon-amber)">DEGRADED</span>
-            </div>
-            <div class="satellite-row">
-              <span>JPSS-1 (NOAA-20)</span
-              ><span style="color: var(--neon-green)">ONLINE</span>
+            <div
+              id="satellite-container"
+              style="font-family: monospace; font-size: 0.75rem; color: #a1a1aa"
+            >
+              Establishing EONET uplink...
             </div>
           </div>
 
@@ -428,152 +508,6 @@
               background: #000;
             "
           ></div>
-
-          <div
-            style="
-              position: absolute;
-              bottom: 20px;
-              left: 50%;
-              transform: translateX(-50%);
-              z-index: 1000;
-              background: rgba(4, 6, 10, 0.9);
-              border: 1px solid rgba(0, 229, 255, 0.3);
-              padding: 12px 20px;
-              font-family: monospace;
-              border-radius: 8px;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-              min-width: 600px;
-            "
-          >
-            <div
-              style="
-                color: #fff;
-                font-weight: bold;
-                font-size: 0.85rem;
-                margin-bottom: 12px;
-                letter-spacing: 1px;
-              "
-            >
-              EXTRA SENSORS
-            </div>
-            <div
-              style="
-                display: flex;
-                gap: 20px;
-                flex-wrap: wrap;
-                justify-content: center;
-              "
-            >
-              <label
-                style="
-                  display: flex;
-                  align-items: center;
-                  color: #bf5af2;
-                  font-size: 0.75rem;
-                  cursor: pointer;
-                  font-weight: bold;
-                "
-              >
-                <input
-                  type="checkbox"
-                  class="checkbox"
-                  style="color: #bf5af2; margin-right: 8px"
-                  onchange="
-                    window.activeSensors.mudslide = this.checked;
-                    window.toggleMudslideTracker(this.checked);
-                  "
-                />
-                MUDSLIDES
-              </label>
-              <label
-                style="
-                  display: flex;
-                  align-items: center;
-                  color: #0a84ff;
-                  font-size: 0.75rem;
-                  cursor: pointer;
-                  font-weight: bold;
-                "
-              >
-                <input
-                  type="checkbox"
-                  class="checkbox"
-                  style="color: #0a84ff; margin-right: 8px"
-                  onchange="
-                    window.activeSensors.cyclone = this.checked;
-                    window.toggleOceanThermalTracker(this.checked);
-                  "
-                />
-                CYCLONES
-              </label>
-              <label
-                style="
-                  display: flex;
-                  align-items: center;
-                  color: #ff9f0a;
-                  font-size: 0.75rem;
-                  cursor: pointer;
-                  font-weight: bold;
-                "
-              >
-                <input
-                  type="checkbox"
-                  class="checkbox"
-                  style="color: #ff9f0a; margin-right: 8px"
-                  onchange="
-                    window.activeSensors.lithosphere = this.checked;
-                    window.toggleLithosphere(this.checked);
-                  "
-                />
-                EARTHQUAKES (>4.5M)
-              </label>
-              <label
-                style="
-                  display: flex;
-                  align-items: center;
-                  color: #ff453a;
-                  font-size: 0.75rem;
-                  cursor: pointer;
-                  font-weight: bold;
-                "
-              >
-                <input
-                  type="checkbox"
-                  class="checkbox"
-                  style="color: #ff453a; margin-right: 8px"
-                  onchange="
-                    window.activeSensors.volcano = this.checked;
-                    window.toggleVolcanoes(this.checked);
-                  "
-                />
-                ASH CLOUDS
-              </label>
-              <label
-                style="
-                  display: flex;
-                  align-items: center;
-                  color: #00e5ff;
-                  font-size: 0.75rem;
-                  cursor: pointer;
-                  font-weight: bold;
-                "
-              >
-                <input
-                  type="checkbox"
-                  class="checkbox"
-                  style="color: #00e5ff; margin-right: 8px"
-                  onchange="
-                    window.activeSensors.firms = this.checked;
-                    window.toggleRawFIRMS(this.checked);
-                  "
-                />
-                RAW SATELLITE HEAT
-              </label>
-            </div>
-          </div>
         </div>
 
         <div class="sidebar" id="right-sidebar">
@@ -586,8 +520,9 @@
               padding: 10px 0;
               margin-bottom: 15px;
               letter-spacing: 3px;
-              border: 1px solid;
+              border: 1px solid rgba(0, 229, 255, 0.3);
               border-radius: 4px;
+              color: var(--neon-cyan);
             "
           ></div>
           <div
@@ -633,6 +568,9 @@
           <button class="tele-tab-btn" onclick="switchTeleTab('bio-mass')">
             🌲 Biomass Health
           </button>
+          <button class="tele-tab-btn" onclick="switchTeleTab('geo-logs')">
+            🖧 Geospatial Logs
+          </button>
         </div>
 
         <div class="tele-content-area">
@@ -651,9 +589,9 @@
             <div class="telemetry-grid">
               <div class="metric-box tele-card-4">
                 <div style="font-size: 0.75rem; color: #a1a1aa">
-                  GLOBAL CARBON EMISSIONS
+                  EST. CARBON FLUX INDEX
                 </div>
-                <div class="metric-val" id="kpi-carbon">0.00 MT</div>
+                <div class="metric-val" id="kpi-carbon">0.00</div>
               </div>
               <div class="metric-box tele-card-4">
                 <div style="font-size: 0.75rem; color: #a1a1aa">
@@ -686,7 +624,7 @@
                 </div>
               </div>
               <div class="metric-box tele-card-6">
-                <h2>CO2 Levels Trend (Est. Megatons)</h2>
+                <h2>CO2 Flux Trend (Derived Index)</h2>
                 <div class="chart-wrapper">
                   <canvas id="carbonChart"></canvas>
                 </div>
@@ -814,6 +752,38 @@
               </button>
             </div>
           </div>
+
+          <!-- PANE 5: GEO LOGS -->
+          <div id="pane-geo-logs" class="tele-panel">
+            <h1
+              style="
+                font-size: 1.8rem;
+                margin: 0;
+                color: #fff;
+                margin-bottom: 20px;
+              "
+            >
+              GEOSPATIAL JSON LOGS
+            </h1>
+            <div class="metric-box">
+              <p style="font-family: monospace; color: #a1a1aa">
+                Raw JSON payloads returning from backend Python API instances.
+              </p>
+              <div
+                class="log"
+                id="geo-json-log"
+                style="
+                  height: 400px;
+                  text-align: left;
+                  white-space: pre-wrap;
+                  display: block;
+                  flex-direction: unset;
+                "
+              >
+                Waiting for fetch requests...
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -824,17 +794,28 @@
       // ==========================================================
       // CORE CONFIGURATION & GLOBAL VARIABLES
       // ==========================================================
-      window.activeSensors = {
-        mudslide: false,
-        cyclone: false,
-        lithosphere: false,
-        volcano: false,
-        firms: false,
+
+      // Store all active events pulled from dynamic layer toggles
+      window.globalLayerData = {
+        wildfires: [],
+        earthquakes: [],
+        volcanoes: [],
+        severeStorms: [],
+        floods: [],
+        seaLakeIce: [],
       };
-      window.globalEarthquakes = [];
-      window.globalVolcanoes = [];
-      window.globalFirms = [];
-      window.liveSatellites = {}; // Stores satellite.js records
+
+      // Leaflet Layer Groups for the dynamic dropdown
+      window.layerGroups = {
+        wildfires: L.layerGroup(),
+        earthquakes: L.layerGroup(),
+        volcanoes: L.layerGroup(),
+        severeStorms: L.layerGroup(),
+        floods: L.layerGroup(),
+        seaLakeIce: L.layerGroup(),
+      };
+
+      window.liveSatellites = {};
 
       const bounds = [
         [-90, -180],
@@ -847,19 +828,15 @@
         minZoom: 2.5,
       }).setView([20, 0], 2.5);
 
+      // Initialize Wildfires as active by default to match HTML checked status
+      window.layerGroups.wildfires.addTo(map);
+
       const backendUrl = "https://climate-shield-api.onrender.com";
       let currentWindLine = null;
       let currentPlume = null;
-
-      let globalFireData = [];
       let displayedFiresCount = 50;
       let currentSortMode = "desc";
 
-      let mudslideLayerGroup = L.layerGroup();
-      let hurricaneLayerGroup = L.layerGroup();
-      let lithosphereLayer = L.layerGroup();
-      let volcanoLayer = L.layerGroup();
-      let firmsRadiometryLayer = L.layerGroup();
       let satelliteLayerGroup = L.layerGroup().addTo(map);
 
       L.tileLayer(
@@ -873,10 +850,9 @@
       window.drawToxicPlume = function (lat, lon, windSpeedKmH, windDir, pm25) {
         if (currentPlume) map.removeLayer(currentPlume);
 
-        // This calculates a complex 72-hour dispersion cone (Macro Plume)
         const plumeAngleRad = ((windDir + 180) % 360) * (Math.PI / 180);
-        const spreadAngleRad = 20 * (Math.PI / 180); // Plume expansion width
-        const dist = windSpeedKmH * 0.015; // Represents massive 72-hour drift
+        const spreadAngleRad = 20 * (Math.PI / 180);
+        const dist = windSpeedKmH * 0.015;
 
         const p1 = [lat, lon];
         const p2 = [
@@ -896,7 +872,6 @@
           fillOpacity: 0.3,
         }).addTo(map);
 
-        // Update Telemetry Panel
         document.getElementById("atm-readout").innerHTML = `
             <span style="color:#a1a1aa">LAST SCANNED PLUME:</span><br>
             Source: [${lat.toFixed(2)}, ${lon.toFixed(2)}]<br>
@@ -938,13 +913,19 @@
         );
 
         try {
-          // Fetch Ignition Risk
           const resIgnition = await fetch(
             `${backendUrl}/api/ignition_risk?lat=${lat}&lon=${lon}`,
           );
           const dataIgnition = await resIgnition.json();
 
-          // Fetch Bio-Mass Health (Phase 5)
+          if (dataIgnition.status === "error") {
+            map.removeLayer(scanRing);
+            logAIStream(
+              `<span style="color:var(--neon-red)">[ERROR] Ignition Scan Failed: ${dataIgnition.error || "Missing API Key or Rate Limited."}</span>`,
+            );
+            return;
+          }
+
           const resBio = await fetch(
             `${backendUrl}/api/biomass?lat=${lat}&lon=${lon}`,
           );
@@ -982,11 +963,6 @@
             logAIStream(
               `Scan complete. Risk: ${dataIgnition.ignition_probability}. BioMass: ${dataBio.health_status}`,
             );
-          } else {
-            map.removeLayer(scanRing);
-            logAIStream(
-              `<span style="color:var(--neon-red)">Scan failed: Atmospheric interference.</span>`,
-            );
           }
         } catch (err) {
           map.removeLayer(scanRing);
@@ -995,6 +971,112 @@
           );
         }
       });
+
+      // ==========================================================
+      // DYNAMIC LAYER TOGGLE FUNCTION (Replaces Extra Sensors)
+      // ==========================================================
+      window.toggleLayer = async function (category, isActive) {
+        if (!isActive) {
+          map.removeLayer(window.layerGroups[category]);
+          window.globalLayerData[category] = [];
+          if (myGlobe) updateGlobeData();
+          return;
+        }
+
+        logAIStream(
+          `[UPLINK] Querying NASA EONET for ${category.toUpperCase()}...`,
+        );
+        window.layerGroups[category].addTo(map);
+
+        try {
+          const res = await fetch(
+            `${backendUrl}/api/events?category=${category}`,
+          );
+          const data = await res.json();
+
+          if (data.status === "success") {
+            window.globalLayerData[category] = data.events;
+
+            // Log raw JSON for Telemetry Tab
+            document.getElementById("geo-json-log").innerText = JSON.stringify(
+              data,
+              null,
+              2,
+            );
+
+            data.events.forEach((event) => {
+              let marker;
+              if (category === "earthquakes") {
+                marker = L.circle([event.lat, event.lon], {
+                  color: "#ff9f0a",
+                  weight: 2,
+                  fillColor: "#ff9f0a",
+                  fillOpacity: 0.3,
+                  radius: 25000,
+                });
+              } else if (category === "volcanoes") {
+                // Triangle/Cone visual
+                const latLngs = [
+                  [event.lat + 0.1, event.lon],
+                  [event.lat - 0.1, event.lon - 0.1],
+                  [event.lat - 0.1, event.lon + 0.1],
+                ];
+                marker = L.polygon(latLngs, {
+                  color: "#ff453a",
+                  weight: 1,
+                  fillColor: "#1a0505",
+                  fillOpacity: 0.9,
+                });
+              } else if (category === "severeStorms") {
+                marker = L.circle([event.lat, event.lon], {
+                  color: "#0a84ff",
+                  weight: 2,
+                  fillColor: "transparent",
+                  dashArray: "5, 5",
+                  radius: 100000,
+                });
+              } else if (category === "floods" || category === "seaLakeIce") {
+                marker = L.circle([event.lat, event.lon], {
+                  color: "#00e5ff",
+                  weight: 1,
+                  fillColor: "#00e5ff",
+                  fillOpacity: 0.2,
+                  radius: 30000,
+                });
+              } else {
+                // Fallback / Wildfires
+                marker = L.circleMarker([event.lat, event.lon], {
+                  radius: 5,
+                  color: "#ff453a",
+                  weight: 1,
+                  fillColor: "#ff453a",
+                  fillOpacity: 0.8,
+                });
+              }
+
+              marker.bindPopup(
+                `<b style="color:var(--neon-cyan); text-transform:uppercase;">${category} DETECTED</b><br>${event.title}`,
+              );
+              marker.on("click", function (e) {
+                L.DomEvent.stopPropagation(e);
+              });
+              window.layerGroups[category].addLayer(marker);
+            });
+            logAIStream(
+              `<span style="color:var(--neon-green)">[SYNC] Rendered ${data.total} active ${category} incidents.</span>`,
+            );
+            if (myGlobe) updateGlobeData(); // Instantly mirror onto 3D Globe!
+          } else {
+            logAIStream(
+              `<span style="color:var(--neon-red)">[ERROR] EONET API rejected request: ${data.message}</span>`,
+            );
+          }
+        } catch (err) {
+          logAIStream(
+            `<span style="color:var(--neon-red)">[ERROR] Connection failed fetching ${category}.</span>`,
+          );
+        }
+      };
 
       // ==========================================================
       // VIEW SWITCHING (TACTICAL, ORBITAL, TELEMETRY)
@@ -1020,10 +1102,7 @@
 
           if (!myGlobe) init3DOrbitalCenter();
 
-          // 🔒 ORBITAL CLEANUP: Removes cluttered sensors, keeps only fires
           if (myGlobe) {
-            myGlobe.pathsData([]);
-            myGlobe.customLayerData([]);
             updateGlobeData();
             myGlobe.pointOfView({ altitude: 2.3 }, 600);
           }
@@ -1184,7 +1263,7 @@
       }
 
       window.calculateSuppressionMetrics = function (targetLat, targetLon) {
-        const fire = globalFireData.find(
+        const fire = window.globalLayerData.wildfires.find(
           (f) => f.lat === targetLat && f.lon === targetLon,
         );
         if (!fire || !fire.liveWind || !fire.liveTerrain || !fire.liveAq)
@@ -1286,7 +1365,8 @@
         const container = document.getElementById("threat-matrix");
         if (reset) container.innerHTML = "";
 
-        const sortedData = [...globalFireData].sort((a, b) =>
+        // Only sort wildfires for the sidebar threat list
+        const sortedData = [...window.globalLayerData.wildfires].sort((a, b) =>
           currentSortMode === "desc"
             ? b.density_score - a.density_score
             : a.density_score - b.density_score,
@@ -1321,7 +1401,7 @@
         .getElementById("right-sidebar")
         .addEventListener("scroll", function () {
           if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
-            if (displayedFiresCount < globalFireData.length) {
+            if (displayedFiresCount < window.globalLayerData.wildfires.length) {
               displayedFiresCount += 50;
               renderThreatMatrix();
             }
@@ -1336,6 +1416,8 @@
           logAIStream(
             "Booting Main Terminal. Establishing NASA EONET uplink...",
           );
+
+          // Use the specific /api/fires endpoint to populate the core wildland data since it calculates density
           const [fireRes, satRes] = await Promise.all([
             fetch(`${backendUrl}/api/fires`),
             fetch(`${backendUrl}/api/satellites`),
@@ -1344,17 +1426,28 @@
           const data = await fireRes.json();
           const satData = await satRes.json();
 
+          const satContainer = document.getElementById("satellite-container");
+          satContainer.innerHTML = "";
+          if (satData.status === "success" && satData.instruments) {
+            satData.instruments.forEach((inst) => {
+              satContainer.innerHTML += `<div class="satellite-row"><span style="color:#e5e7eb; font-weight:bold;">${inst.toUpperCase()}</span><span style="color:var(--neon-green)">ONLINE</span></div>`;
+            });
+          } else {
+            satContainer.innerHTML = `<div class="satellite-row"><span style="color:#e5e7eb;">NASA EONET</span><span style="color:var(--neon-red)">OFFLINE</span></div>`;
+          }
+
           if (data.status === "success") {
             document.getElementById("total-fires").innerText =
               data.total_global;
-            document.getElementById("kpi-carbon").innerText =
-              (data.total_global * 0.14).toFixed(2) + " MT";
+            document.getElementById("kpi-carbon").innerText = (
+              data.total_global * 0.14
+            ).toFixed(2); // Removed MT as it's an index
 
             let highRiskCount = 0;
             const tableBody = document.getElementById("table-body-matrix");
             tableBody.innerHTML = "";
 
-            globalFireData = data.fires.map((fire, index) => {
+            window.globalLayerData.wildfires = data.fires.map((fire, index) => {
               if (fire.density_score >= 8) highRiskCount++;
               let markerColor =
                 fire.density_score >= 8
@@ -1370,13 +1463,14 @@
                 weight: 15,
                 fillColor: markerColor,
                 fillOpacity: 0.8,
-              }).addTo(map);
+              });
 
               fire.markerRef = marker;
               marker.on("click", function (e) {
                 L.DomEvent.stopPropagation(e);
                 inspectFire(fire);
               });
+              window.layerGroups.wildfires.addLayer(marker);
 
               if (index < 10) {
                 const row = document.createElement("tr");
@@ -1406,6 +1500,9 @@
             logAIStream(
               `Uplink processed ${data.total_global} total thermal events successfully.`,
             );
+
+            // Render the globe points if in orbital mode
+            if (myGlobe) updateGlobeData();
           }
 
           // Initialize Phase 3: Satellite TLEs
@@ -1509,12 +1606,12 @@
       }
 
       function renderCharts() {
-        if (!globalFireData.length) return;
+        if (!window.globalLayerData.wildfires.length) return;
 
         let lowRisk = 0,
           medRisk = 0,
           highRisk = 0;
-        globalFireData.forEach((f) => {
+        window.globalLayerData.wildfires.forEach((f) => {
           if (f.density_score >= 8) highRisk++;
           else if (f.density_score >= 3) medRisk++;
           else lowRisk++;
@@ -1559,7 +1656,7 @@
           .getElementById("carbonChart")
           .getContext("2d");
         if (window.carbonChartInstance) window.carbonChartInstance.destroy();
-        const baseCarbon = globalFireData.length * 0.14;
+        const baseCarbon = window.globalLayerData.wildfires.length * 0.14;
         const pastData = [
           baseCarbon * 0.82,
           baseCarbon * 0.88,
@@ -1627,25 +1724,31 @@
           .pointLat("lat")
           .pointLng("lon")
           .pointColor((d) =>
-            d.density_score >= 8
-              ? "#ff453a"
-              : d.density_score >= 3
-                ? "#ff9f0a"
-                : "#32d74b",
+            d.density_score
+              ? d.density_score >= 8
+                ? "#ff453a"
+                : d.density_score >= 3
+                  ? "#ff9f0a"
+                  : "#32d74b"
+              : "#00e5ff",
           )
-          .pointAltitude((d) => Math.min(d.density_score * 0.04, 0.3))
-          .pointRadius(0.22)
+          .pointAltitude((d) =>
+            d.density_score ? Math.min(d.density_score * 0.04, 0.3) : 0.05,
+          )
+          .pointRadius((d) => (d.density_score ? 0.22 : 0.4))
           .pointsTransitionDuration(1000)
           .ringLat("lat")
           .ringLng("lon")
-          .ringColor(() => "#ff453a")
-          .ringMaxRadius((d) => Math.min(d.density_score * 0.8, 4.0))
-          .ringPropagationSpeed(1.5)
+          .ringColor((d) => d.ringColor || "#ff453a")
+          .ringMaxRadius(
+            (d) => d.ringRadius || Math.min(d.density_score * 0.8, 4.0),
+          )
+          .ringPropagationSpeed((d) => d.ringSpeed || 1.5)
           .ringRepeatPeriod(1200)
           .onPointClick((fire) => {
             logAIStream(`Orbital focus shifted to sector: ${fire.title}`);
             switchMode("tactical");
-            inspectFire(fire);
+            map.setView([fire.lat, fire.lon], 6);
           });
 
         const scene = myGlobe.scene();
@@ -1655,226 +1758,178 @@
         scene.add(globalAmbient);
 
         myGlobe.controls().autoRotate = false;
-        myGlobe.pointOfView({ altitude: 2.2 });
+        myGlobe.pointOfView({ altitude: 2.3 });
       }
 
       function updateGlobeData() {
-        if (!myGlobe || !globalFireData.length) return;
-        myGlobe.pointsData(globalFireData);
-        const topCriticalOutbreaks = globalFireData.filter(
-          (fire) => fire.density_score >= 8,
-        );
-        myGlobe.ringsData(topCriticalOutbreaks);
-        // NOTE: Custom sensors removed from Orbital View to maintain extreme performance and clean visuals.
+        if (!myGlobe) return;
+
+        // 1. Gather all active layers
+        let allPoints = [];
+        let allRings = [];
+        let allCustomMeshes = [];
+
+        // Wildfires (Points and Rings)
+        if (window.globalLayerData.wildfires.length > 0) {
+          allPoints.push(...window.globalLayerData.wildfires);
+          const criticalFires = window.globalLayerData.wildfires.filter(
+            (fire) => fire.density_score >= 8,
+          );
+          allRings.push(...criticalFires);
+        }
+
+        // Earthquakes (3D Wireframe Spheres)
+        if (
+          window.globalLayerData.earthquakes &&
+          window.globalLayerData.earthquakes.length > 0
+        ) {
+          allCustomMeshes.push(
+            ...window.globalLayerData.earthquakes.map((eq) => ({
+              ...eq,
+              type: "earthquake",
+            })),
+          );
+        }
+
+        // Volcanoes (3D Inverted Cones)
+        if (
+          window.globalLayerData.volcanoes &&
+          window.globalLayerData.volcanoes.length > 0
+        ) {
+          allCustomMeshes.push(
+            ...window.globalLayerData.volcanoes.map((v) => ({
+              ...v,
+              type: "volcano",
+            })),
+          );
+        }
+
+        // Severe Storms (Large Blue Rings)
+        if (
+          window.globalLayerData.severeStorms &&
+          window.globalLayerData.severeStorms.length > 0
+        ) {
+          allRings.push(
+            ...window.globalLayerData.severeStorms.map((s) => ({
+              ...s,
+              ringColor: "#0a84ff",
+              ringRadius: 8.0,
+              ringSpeed: 0.8,
+            })),
+          );
+        }
+
+        // Floods / Sea Ice (Cyan Points)
+        if (
+          window.globalLayerData.floods &&
+          window.globalLayerData.floods.length > 0
+        ) {
+          allPoints.push(...window.globalLayerData.floods);
+        }
+        if (
+          window.globalLayerData.seaLakeIce &&
+          window.globalLayerData.seaLakeIce.length > 0
+        ) {
+          allPoints.push(...window.globalLayerData.seaLakeIce);
+        }
+
+        myGlobe.pointsData(allPoints);
+        myGlobe.ringsData(allRings);
+
+        myGlobe
+          .customLayerData(allCustomMeshes)
+          .customThreeObject((d) => {
+            if (d.type === "volcano") {
+              const mesh = new THREE.Mesh(
+                new THREE.ConeGeometry(0.8, 2.5, 8),
+                new THREE.MeshBasicMaterial({ color: 0xff453a }),
+              );
+              mesh.rotation.x = Math.PI;
+              return mesh;
+            }
+            if (d.type === "earthquake") {
+              return new THREE.Mesh(
+                new THREE.SphereGeometry(1.2, 8, 8),
+                new THREE.MeshBasicMaterial({
+                  color: 0xff9f0a,
+                  wireframe: true,
+                }),
+              );
+            }
+            return null;
+          })
+          .customThreeObjectUpdate((obj, d) => {
+            Object.assign(obj.position, myGlobe.getCoords(d.lat, d.lon, 0.01));
+            if (d.type !== "earthquake")
+              obj.lookAt(myGlobe.getCoords(d.lat, d.lon, 0));
+          });
       }
 
       // ==========================================
-      // PHASE 7: MULTI-THREADED WEB WORKER
+      // AUTOMATED SCANNER FIX (Respects Free Tier)
       // ==========================================
-      const workerCode = `
-          self.onmessage = function(e) {
-              const { action, rawData } = e.data;
-              if (action === 'parse_earthquakes') {
-                  const parsed = rawData.features.map(f => ({ lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], depth: f.geometry.coordinates[2], mag: f.properties.mag, title: f.properties.title }));
-                  self.postMessage({ action: 'earthquakes_done', data: parsed });
+      async function runGlobalProactiveScan() {
+        logAIStream("Initializing Global Proactive Scanning Matrix...");
+
+        const dynamicHotspots =
+          window.globalLayerData.wildfires.length > 0
+            ? window.globalLayerData.wildfires
+                .slice(0, 5)
+                .map((f) => ({
+                  lat: f.lat,
+                  lon: f.lon,
+                  name: "Critical Core Zone",
+                }))
+            : [{ lat: 34.05, lon: -118.24, name: "Fallback Sector Alpha" }];
+
+        for (const hotspot of dynamicHotspots) {
+          try {
+            const res = await fetch(
+              `${backendUrl}/api/ignition_risk?lat=${hotspot.lat}&lon=${hotspot.lon}`,
+            );
+            const data = await res.json();
+
+            if (data.status === "success") {
+              let riskVal = parseFloat(data.ignition_probability);
+              if (riskVal > 30) {
+                let color = riskVal >= 75 ? "#ff453a" : "#ff9f0a";
+                const zone = L.circle([hotspot.lat, hotspot.lon], {
+                  color: color,
+                  weight: 1,
+                  fillColor: color,
+                  fillOpacity: 0.15,
+                  radius: 150000,
+                }).addTo(map);
+
+                let growing = true;
+                setInterval(() => {
+                  let currentOpacity = zone.options.fillOpacity;
+                  if (growing) {
+                    zone.setStyle({ fillOpacity: currentOpacity + 0.02 });
+                    if (zone.options.fillOpacity >= 0.3) growing = false;
+                  } else {
+                    zone.setStyle({ fillOpacity: currentOpacity - 0.02 });
+                    if (zone.options.fillOpacity <= 0.1) growing = true;
+                  }
+                }, 150);
               }
-              if (action === 'parse_firms') {
-                  const parsed = rawData.data.map(p => ({ lat: parseFloat(p.lat), lon: parseFloat(p.lon), frp: parseFloat(p.frp), temp: parseFloat(p.brightness) }));
-                  self.postMessage({ action: 'firms_done', data: parsed });
-              }
-          };
-      `;
-      const workerBlob = new Blob([workerCode], {
-        type: "application/javascript",
-      });
-      const analyticsWorker = new Worker(URL.createObjectURL(workerBlob));
-
-      analyticsWorker.onmessage = function (e) {
-        const { action, data } = e.data;
-        if (!data) return;
-
-        if (action === "earthquakes_done" && Array.isArray(data)) {
-          window.globalEarthquakes = data;
-          data.forEach((quake) => {
-            let eqColor = quake.mag > 6.0 ? "#ff453a" : "#ff9f0a";
-            const marker = L.circle([quake.lat, quake.lon], {
-              color: eqColor,
-              weight: 2,
-              fillColor: eqColor,
-              fillOpacity: 0.3,
-              radius: quake.mag * 12000,
-            });
-            marker.bindPopup(
-              `<b style="color:${eqColor}">EARTHQUAKE DETECTED</b><br>${quake.title}<br><b>Size:</b> ${quake.mag} M<br><b>Depth:</b> ${quake.depth} km`,
-            );
-            marker.on("click", function (e) {
-              L.DomEvent.stopPropagation(e);
-            });
-            lithosphereLayer.addLayer(marker);
-          });
-          lithosphereLayer.addTo(map);
-          logAIStream(
-            `<span style="color:#ff9f0a">[SEISMIC] Background thread parsed ${data.length} global fractures.</span>`,
-          );
-        }
-
-        if (action === "firms_done") {
-          window.globalFirms = data;
-          data.forEach((pt) => {
-            const marker = L.circle([pt.lat, pt.lon], {
-              color: "transparent",
-              weight: 0,
-              fillColor: "#00e5ff",
-              fillOpacity: 0.6,
-              radius: 2500,
-            });
-            marker.bindPopup(
-              `<b style="color:#00e5ff">SATELLITE HEAT SENSORS</b><br><b>Fire Intensity (FRP):</b> ${pt.frp} MW<br><b>Ground Heat:</b> ${pt.temp} K`,
-            );
-            marker.on("click", function (e) {
-              L.DomEvent.stopPropagation(e);
-            });
-            firmsRadiometryLayer.addLayer(marker);
-          });
-          firmsRadiometryLayer.addTo(map);
-          logAIStream(
-            `<span style="color:#00e5ff">[RADIOMETRY] NASA MODAPS spectral array applied.</span>`,
-          );
-        }
-      };
-
-      // ==========================================
-      // EXTRA SENSOR TOGGLE FUNCTIONS
-      // ==========================================
-      window.toggleMudslideTracker = function (isActive) {
-        mudslideLayerGroup.clearLayers();
-        if (!isActive) {
-          map.removeLayer(mudslideLayerGroup);
-          return;
-        }
-
-        logAIStream(
-          `[COMPUTING] Cross-referencing burn scars with terrain slope...`,
-        );
-        globalFireData.forEach((fire) => {
-          if (
-            fire.density_score > 3 &&
-            fire.liveTerrain &&
-            fire.liveTerrain.elevation_meters > 600
-          ) {
-            const zone = L.circle([fire.lat, fire.lon], {
-              color: "#bf5af2",
-              weight: 2,
-              fillColor: "#bf5af2",
-              fillOpacity: 0.2,
-              radius: 4500,
-              dashArray: "8, 8",
-            });
-            zone.bindPopup(
-              `<b style="color:#bf5af2">⚠️ CRITICAL MUDSLIDE RISK</b><br>Elevation: ${fire.liveTerrain.elevation_meters}m`,
-            );
-            zone.on("click", function (e) {
-              L.DomEvent.stopPropagation(e);
-            });
-            mudslideLayerGroup.addLayer(zone);
+            } else {
+              // Silently skip if rate limited to prevent console spam
+              if (!data.error.includes("429"))
+                logAIStream(
+                  `<span style="color:var(--neon-red)">[ERROR] Scanner: ${data.error}</span>`,
+                );
+            }
+          } catch (err) {
+            // Silently skip
           }
-        });
-        mudslideLayerGroup.addTo(map);
-      };
-
-      window.toggleOceanThermalTracker = function (isActive) {
-        hurricaneLayerGroup.clearLayers();
-        if (!isActive) {
-          map.removeLayer(hurricaneLayerGroup);
-          return;
+          // WAIT 3 SECONDS between polls so OpenWeatherMap Free Tier doesn't block us!
+          await new Promise((resolve) => setTimeout(resolve, 3000));
         }
+      }
 
-        const anomalies = [
-          { name: "Atlantic MDR", lat: 15.4, lon: -45.2, sst: 29.1 },
-          { name: "Gulf Baseline", lat: 24.2, lon: -87.5, sst: 30.2 },
-          { name: "Pacific Matrix", lat: 12.8, lon: 135.6, sst: 29.8 },
-        ];
-        anomalies.forEach((anomaly) => {
-          const zone = L.circle([anomaly.lat, anomaly.lon], {
-            color: "#0a84ff",
-            weight: 1,
-            fillColor: "#0a84ff",
-            fillOpacity: 0.15,
-            radius: 250000,
-            dashArray: "4, 4",
-          });
-          zone.bindPopup(
-            `<b style="color:#0a84ff">HURRICANE/CYCLONE TRACKER</b><br>Region: ${anomaly.name}<br>Water Temp: ${anomaly.sst}°C`,
-          );
-          zone.on("click", function (e) {
-            L.DomEvent.stopPropagation(e);
-          });
-          hurricaneLayerGroup.addLayer(zone);
-        });
-        hurricaneLayerGroup.addTo(map);
-      };
-
-      window.toggleLithosphere = async function (isActive) {
-        lithosphereLayer.clearLayers();
-        if (!isActive) {
-          map.removeLayer(lithosphereLayer);
-          return;
-        }
-        try {
-          const res = await fetch(`${backendUrl}/api/earthquakes`);
-          const geojson = await res.json();
-          analyticsWorker.postMessage({
-            action: "parse_earthquakes",
-            rawData: geojson,
-          });
-        } catch (err) {}
-      };
-
-      window.toggleVolcanoes = async function (isActive) {
-        volcanoLayer.clearLayers();
-        if (!isActive) {
-          map.removeLayer(volcanoLayer);
-          return;
-        }
-        try {
-          const res = await fetch(`${backendUrl}/api/volcanoes`);
-          const data = await res.json();
-          if (!data || !data.events) return;
-
-          data.events.forEach((volcano) => {
-            const coords = volcano.geometry[0].coordinates;
-            const marker = L.circleMarker([coords[1], coords[0]], {
-              radius: 8,
-              color: "#ff453a",
-              weight: 2,
-              fillColor: "#1a0505",
-              fillOpacity: 0.9,
-            });
-            marker.bindPopup(
-              `<b style="color:#ff453a">ACTIVE VOLCANIC ERUPTION</b><br>${volcano.title}`,
-            );
-            marker.on("click", function (e) {
-              L.DomEvent.stopPropagation(e);
-            });
-            volcanoLayer.addLayer(marker);
-          });
-          volcanoLayer.addTo(map);
-        } catch (err) {}
-      };
-
-      window.toggleRawFIRMS = async function (isActive) {
-        firmsRadiometryLayer.clearLayers();
-        if (!isActive) {
-          map.removeLayer(firmsRadiometryLayer);
-          return;
-        }
-        try {
-          const res = await fetch(`${backendUrl}/api/raw_firms`);
-          const data = await res.json();
-          if (data.status === "error") return;
-          analyticsWorker.postMessage({ action: "parse_firms", rawData: data });
-        } catch (err) {}
-      };
+      // Start slower to let API warm up
+      setTimeout(runGlobalProactiveScan, 10000);
     </script>
   </body>
 </html>
