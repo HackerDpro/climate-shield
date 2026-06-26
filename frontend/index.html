@@ -409,7 +409,7 @@
               style="color: #ff453a"
               onchange="toggleSpecificLayer('wildfires', this.checked)"
               checked
-            />🔥 Wildfires</label
+            />Wildfires</label
           >
           <label style="color: #ff9f0a"
             ><input
@@ -417,7 +417,7 @@
               class="checkbox"
               style="color: #ff9f0a"
               onchange="toggleSpecificLayer('earthquakes', this.checked)"
-            />💥 Earthquakes</label
+            />Earthquakes</label
           >
           <label style="color: #bf5af2"
             ><input
@@ -425,7 +425,7 @@
               class="checkbox"
               style="color: #bf5af2"
               onchange="toggleSpecificLayer('volcanoes', this.checked)"
-            />🌋 Volcanoes</label
+            />Volcanoes</label
           >
           <label style="color: #0a84ff"
             ><input
@@ -433,7 +433,7 @@
               class="checkbox"
               style="color: #0a84ff"
               onchange="toggleSpecificLayer('severeStorms', this.checked)"
-            />🌀 Severe Storms</label
+            />Severe Storms</label
           >
           <label style="color: #00e5ff"
             ><input
@@ -441,7 +441,7 @@
               class="checkbox"
               style="color: #00e5ff"
               onchange="toggleSpecificLayer('floods', this.checked)"
-            />🌊 Floods</label
+            />Floods</label
           >
           <label style="color: #00e5ff"
             ><input
@@ -449,7 +449,7 @@
               class="checkbox"
               style="color: #00e5ff"
               onchange="toggleSpecificLayer('firms', this.checked)"
-            />🛰️ Raw Satellite Heat</label
+            />Raw Satellite Heat</label
           >
         </div>
       </div>
@@ -558,19 +558,19 @@
             class="tele-tab-btn active"
             onclick="switchTeleTab('core-analytics')"
           >
-            📊 Core Analytics
+            Core Analytics
           </button>
           <button class="tele-tab-btn" onclick="switchTeleTab('sat-swarm')">
-            🛰️ Satellite Swarm
+            Satellite Swarm
           </button>
           <button class="tele-tab-btn" onclick="switchTeleTab('atm-plumes')">
-            🌪️ Atmosphere Data
+            Atmosphere Data
           </button>
           <button class="tele-tab-btn" onclick="switchTeleTab('bio-mass')">
-            🌲 Biomass Health
+            Biomass Health
           </button>
           <button class="tele-tab-btn" onclick="switchTeleTab('geo-logs')">
-            🖧 Geospatial Logs
+            Geospatial Logs
           </button>
         </div>
 
@@ -839,7 +839,7 @@
 
       window.layerGroups.wildfires.addTo(map); // Default active layer
 
-      const backendUrl = "https://climate-shield-api.onrender.com";
+      const backendUrl = "https://diego.hackclub.app";
       let currentWindLine = null;
       let currentPlume = null;
       let displayedFiresCount = 50;
@@ -1006,7 +1006,7 @@
           window.toggleEonetCategory(
             "severeStorms",
             "#0a84ff",
-            "🌀 SEVERE STORM",
+            "SEVERE STORM",
           );
         } else if (layerName === "floods") {
           window.toggleEonetCategory("floods", "#00e5ff", "🌊 FLOOD ZONE");
@@ -1116,7 +1116,7 @@
             });
             marker.bindPopup(`
                 <div style="font-family: monospace; font-size:0.8rem; color:#fff;">
-                    <b style="color:#ff453a">🌋 ACTIVE VOLCANO</b><br>
+                    <b style="color:#ff453a">ACTIVE VOLCANO</b><br>
                     <b>Target:</b> ${volcano.title}<br>
                     <b>Status:</b> Erupting / Ash Plume Detected<br>
                     <b>Threat:</b> High Aviation/Climate Risk
