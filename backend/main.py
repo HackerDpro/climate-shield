@@ -34,8 +34,8 @@ def get_satellite_sources():
         if res.status_code == 200:
             sources = res.json().get("sources", [])
             return {"status": "success", "instruments": [s['id'] for s in sources[:8]]}
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[API ERROR] Fetches Satellite Sources: {e}")
     return {"status": "error", "message": "NASA EONET uplink failed."}
 
 @app.get("/api/wind")
@@ -49,8 +49,8 @@ def get_wind_data(lat: float, lon: float):
             data = response.json()
             wind = data.get('wind', {'speed': 0, 'deg': 0})
             return {"speed": wind.get('speed', 0), "direction": wind.get('deg', 0)}
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[API ERROR] Fetching Wind Data: {e}")
     return {"speed": 0, "direction": 0}
 
 @app.get("/api/air_quality")
@@ -61,8 +61,8 @@ def get_air_quality(lat: float, lon: float):
         if response.status_code == 200:
             data = response.json().get('current', {})
             return {"status": "success", "pm2_5": data.get("pm2_5", 0), "co": data.get("carbon_monoxide", 0)}
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[API ERROR] Fetching Air Quality: {e}")
     return {"status": "offline", "pm2_5": "N/A", "co": "N/A"}
 
 @app.get("/api/analyze_terrain")
@@ -102,8 +102,8 @@ def analyze_terrain(lat: float, lon: float, wind_dir: float):
                     "terrain_status": terrain_status,
                     "spread_multiplier": multiplier
                 }
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[API ERROR] Analyzing Terrain: {e}")
     return {"status": "fallback", "elevation_meters": "Unknown", "terrain_status": "TERRAIN DATA OFFLINE", "spread_multiplier": 1.0}
 
 @app.get("/api/fires")
@@ -122,7 +122,7 @@ def get_active_fires():
                 if not geometry: continue
                 coords = geometry[0].get('coordinates', [])
                 if len(coords) < 2: continue
-                lon, lat = coords[0], coords[1]
+                lon, lat = float(coords[0]), float(coords[1])
                 if -90 <= lat <= 90 and -180 <= lon <= 180:
                     clean_fires.append({"title": title.replace("Wildfire", "").strip(), "lat": lat, "lon": lon})
             
@@ -137,6 +137,7 @@ def get_active_fires():
             return {"status": "success", "total_global": len(clean_fires), "fires": clean_fires}
         return {"status": "error", "message": "NASA uplink rejected."}
     except Exception as e:
+        print(f"[API ERROR] Fetching Fires: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/events")
@@ -157,13 +158,14 @@ def get_nasa_events(category: str):
                 if isinstance(coords[0], list):
                     coords = coords[0][0]
                 if len(coords) < 2: continue
-                lon, lat = coords[0], coords[1]
+                lon, lat = float(coords[0]), float(coords[1])
                 clean_events.append({"title": title, "lat": lat, "lon": lon, "category": category})
             return {"status": "success", "total": len(clean_events), "events": clean_events}
         elif response.status_code == 503:
             return {"status": "error", "message": "NASA EONET API 503: Service Unavailable / Overloaded."}
         return {"status": "error", "message": f"NASA API Error: {response.status_code}"}
     except Exception as e:
+        print(f"[API ERROR] Fetching NASA Events for {category}: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/ignition_risk")
@@ -181,7 +183,6 @@ def calculate_ignition_risk(lat: float, lon: float):
         humidity = weather_data["main"]["humidity"]
         wind_speed_kmh = weather_data["wind"]["speed"] * 3.6
 
-        # FIXED: Open-Meteo moved soil_moisture to the hourly array. We extract the first hour [0]
         url_soil = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=soil_moisture_0_to_7cm,precipitation&forecast_days=1"
         res_soil = requests.get(url_soil, timeout=5).json().get("hourly", {})
         
@@ -200,11 +201,12 @@ def calculate_ignition_risk(lat: float, lon: float):
         status = "CRITICAL IGNITION WARNING" if ignition_risk_percent >= 75 else "ELEVATED RISK" if ignition_risk_percent >= 50 else "NOMINAL"
         return {"status": "success", "lat": lat, "lon": lon, "ignition_probability": f"{ignition_risk_percent}%", "telemetry": {"temp_c": temp_c, "humidity": f"{humidity}%", "wind_kmh": round(wind_speed_kmh, 1), "soil_moisture_vsw": soil_moisture}, "ai_status": status}
     except Exception as e:
+        print(f"[API ERROR] Calculating Ignition Risk: {e}")
         return {"status": "error", "error": f"Failed to calculate risk: {str(e)}"}
 
 @app.get("/api/tle")
 def get_satellite_orbits():
-    """PHASE 3: Fetches Two-Line Elements. Switched to 'resource' for Landsat, Sentinel, Terra, Aqua"""
+    """PHASE 3: Fetches Two-Line Elements."""
     url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=resource&FORMAT=tle"
     try:
         res = requests.get(url, timeout=10)
@@ -212,6 +214,7 @@ def get_satellite_orbits():
             return {"status": "success", "tle_data": res.text}
         return {"status": "error", "message": "CelesTrak rejected connection."}
     except Exception as e:
+        print(f"[API ERROR] Fetching TLE: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/biomass")
@@ -223,7 +226,6 @@ def get_biomass_data(lat: float, lon: float):
         if res.status_code == 200:
             data = res.json().get('hourly', {})
             
-            # Extract first hour [0] from arrays
             sm = data.get("soil_moisture_0_to_7cm", [0.5])[0]
             et = data.get("evapotranspiration", [0])[0]
             vpd = data.get("vapor_pressure_deficit", [0])[0]
@@ -244,6 +246,7 @@ def get_biomass_data(lat: float, lon: float):
             }
         return {"status": "error", "message": "Bio-Mass telemetry offline."}
     except Exception as e:
+        print(f"[API ERROR] Fetching Biomass: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/earthquakes")
@@ -254,6 +257,7 @@ def get_earthquakes():
         res = requests.get(url, timeout=5)
         return res.json()
     except Exception as e:
+        print(f"[API ERROR] Fetching Earthquakes: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/volcanoes")
@@ -264,6 +268,7 @@ def get_volcanoes():
         res = requests.get(url, timeout=5)
         return res.json()
     except Exception as e:
+        print(f"[API ERROR] Fetching Volcanoes: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/raw_firms")
@@ -281,7 +286,7 @@ def get_raw_firms():
         csv_reader = csv.DictReader(StringIO(res.text))
         thermal_points = []
         for index, row in enumerate(csv_reader):
-            if index > 2000: break # Limit payload size to maintain extreme high performance
+            if index > 2000: break 
             try:
                 thermal_points.append({
                     "lat": float(row["latitude"]),
@@ -294,4 +299,19 @@ def get_raw_firms():
                 continue
         return {"status": "success", "data": thermal_points}
     except Exception as e:
+        print(f"[API ERROR] Fetching Raw FIRMS: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/co2_history")
+def get_co2_history():
+    """Fetches genuine historic planetary CO2 data from NOAA/Mauna Loa"""
+    url = "https://global-warming.org/api/co2-api"
+    try:
+        res = requests.get(url, timeout=10)
+        if res.status_code == 200:
+            data = res.json()
+            return {"status": "success", "data": data.get("co2", [])}
+        return {"status": "error", "message": "NOAA CO2 Observatory rejected connection."}
+    except Exception as e:
+        print(f"[API ERROR] Fetching CO2 History: {e}")
         return {"status": "error", "message": str(e)}

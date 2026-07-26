@@ -7,7 +7,7 @@
 
     <link rel="icon" href="icons8-earth-96 (2).png" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
@@ -35,7 +35,6 @@
         color: var(--text-main);
       }
 
-      /* Fixed Navigation Header with Dropdown Support */
       #top-nav {
         position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
         z-index: 1000; display: flex; gap: 10px; background: rgba(4, 6, 10, 0.85);
@@ -110,7 +109,7 @@
       .tele-panel { display: none; }
       .tele-panel.active { display: block; }
 
-      .telemetry-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; max-width: 1600px; margin: 0 auto; }
+      .telemetry-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; max-width: 1600px; }
 
       h1 { font-size: 1.2rem; color: var(--neon-cyan); margin: 0 0 5px 0; letter-spacing: 2px; }
       h2 { font-size: 0.85rem; color: var(--neon-amber); margin: 20px 0 10px 0; border-bottom: 1px solid rgba(255, 159, 10, 0.15); padding-bottom: 5px; letter-spacing: 1px; }
@@ -188,6 +187,7 @@
         cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         box-shadow: 0 0 20px rgba(0,0,0,0.9);
       }
+      /* Block iframe pointer events in State 1 so clicking the PIP swaps views */
       .view-state-1 #recon-pip-view iframe { width: 100%; height: 100%; pointer-events: none; }
       .view-state-1 #recon-main-view::after { content: none; }
 
@@ -197,17 +197,18 @@
         display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 4px;
         z-index: 1; background: #000; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
       }
+      /* Allow interacting with live iframes in State 2 */
       .view-state-2 #recon-pip-view iframe { width: 100%; height: 100%; pointer-events: auto; }
       .view-state-2 #recon-main-view {
         position: absolute; bottom: 20px; right: 20px; width: 450px; height: 350px;
         z-index: 2; border: 2px solid var(--neon-amber); box-shadow: 0 0 25px rgba(255, 159, 10, 0.5);
         cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
       }
+      /* Block map interaction in PIP state so clicking it swaps views */
       .view-state-2 #recon-main-view::after {
         content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         background: transparent; z-index: 1000; 
       }
-      .pip-quadrant { background: #111; display: flex; align-items: center; justify-content: center; }
     </style>
   </head>
 
@@ -429,7 +430,7 @@
       
       window.layerGroups.wildfires.addTo(map); 
 
-      const backendUrl = "https://diego.hackclub.app";
+      const backendUrl = "https://climate-shield-api.onrender.com";
       let currentWindLine = null;
       let currentPlume = null;
       let displayedFiresCount = 50;
@@ -474,8 +475,8 @@
       map.on("click", async function (e) {
         if (e.originalEvent.target.closest(".leaflet-popup") || e.originalEvent.target.closest(".leaflet-marker-icon") || e.originalEvent.target.closest(".leaflet-interactive")) return;
 
-        const lat = parseFloat(e.latlng.lat);
-        const lon = parseFloat(e.latlng.lng);
+        const lat = e.latlng.lat;
+        const lon = e.latlng.lng;
 
         const scanRing = L.circle([lat, lon], { color: "#00e5ff", weight: 2, fillColor: "#00e5ff", fillOpacity: 0.1, radius: 80000, dashArray: "4, 6" }).addTo(map);
         scanRing.bindPopup(`<span style="color:var(--neon-cyan); font-family:monospace;">Initiating Biomass & Ignition Scan...</span><br>
@@ -527,7 +528,7 @@
         } catch (err) {
           map.removeLayer(scanRing);
           logAIStream(`<span style="color:var(--neon-red)">CRITICAL: Uplink failed during sector scan.</span>`);
-          console.error("Scan Error: ", err);
+          console.error(err);
         }
       });
 
@@ -586,7 +587,7 @@
               }
           } catch (err) {
               logAIStream(`<span style="color:var(--neon-red)">[ERROR] Connection failed fetching ${category}.</span>`);
-              console.error("EONET Category Error: ", err);
+              console.error(err);
           }
       };
 
@@ -599,7 +600,7 @@
           analyticsWorker.postMessage({ action: "parse_earthquakes", rawData: geojson });
         } catch (err) {
           logAIStream(`<span style="color:var(--neon-red)">[ERROR] Failed fetching Lithosphere.</span>`);
-          console.error("Earthquake Error: ", err);
+          console.error(err);
         }
       };
 
@@ -612,14 +613,14 @@
           document.getElementById('geo-json-log').innerText = JSON.stringify(data, null, 2);
 
           window.globalLayerData.volcanoes = data.events.map((v) => ({
-            lat: parseFloat(v.geometry[0].coordinates[1]),
-            lon: parseFloat(v.geometry[0].coordinates[0]),
+            lat: v.geometry[0].coordinates[1],
+            lon: v.geometry[0].coordinates[0],
             title: v.title
           }));
 
           data.events.forEach((volcano) => {
             const coords = volcano.geometry[0].coordinates;
-            const marker = L.circleMarker([parseFloat(coords[1]), parseFloat(coords[0])], { radius: 8, color: "#ff453a", weight: 2, fillColor: "#1a0505", fillOpacity: 0.9 });
+            const marker = L.circleMarker([coords[1], coords[0]], { radius: 8, color: "#ff453a", weight: 2, fillColor: "#1a0505", fillOpacity: 0.9 });
             marker.bindPopup(`
                 <div style="font-family: monospace; font-size:0.8rem; color:#fff;">
                     <b style="color:#ff453a">🌋 ACTIVE VOLCANO</b><br>
@@ -636,7 +637,7 @@
           if (myGlobe) updateGlobeData();
         } catch (err) {
           logAIStream(`<span style="color:var(--neon-red)">[ERROR] Failed fetching Volcanoes.</span>`);
-          console.error("Volcano Error: ", err);
+          console.error(err);
         }
       };
 
@@ -653,7 +654,7 @@
           analyticsWorker.postMessage({ action: "parse_firms", rawData: data });
         } catch (err) {
           logAIStream(`<span style="color:var(--neon-red)">[ERROR] Failed fetching FIRMS.</span>`);
-          console.error("FIRMS Error: ", err);
+          console.error(err);
         }
       };
 
@@ -718,7 +719,7 @@
       // ==========================================================
       async function inspectFire(fire) {
         const startTime = performance.now();
-        map.setView([parseFloat(fire.lat), parseFloat(fire.lon)], 9);
+        map.setView([fire.lat, fire.lon], 9);
 
         fire.markerRef.bindPopup(`<b>${fire.title}</b><br><span style='color:var(--neon-cyan);'>Querying multiple orbital APIs...</span>`, { offset: [0, -10] }).openPopup();
 
@@ -785,7 +786,7 @@
           calculateEvacuationRoute(fire.lat, fire.lon, wind.direction);
         } catch (err) {
           logAIStream(`<span style="color:var(--neon-red)">ERROR: Packet loss on coordinates ${fire.lat.toFixed(2)}</span>`);
-          console.error("Inspect Fire Error: ", err);
+          console.error(err);
         }
       }
 
@@ -868,6 +869,7 @@
         const container = document.getElementById("threat-matrix");
         if (reset) container.innerHTML = "";
 
+        // Only sort wildfires for the sidebar threat list
         const sortedData = [...window.globalLayerData.wildfires].sort((a, b) => currentSortMode === "desc" ? b.density_score - a.density_score : a.density_score - b.density_score);
         const toRender = sortedData.slice(container.children.length, displayedFiresCount);
 
@@ -964,7 +966,7 @@
 
         } catch (error) {
           logAIStream(`<span style="color:var(--neon-red)">CRITICAL SYSTEM FAILURE: Cannot reach backend.</span>`);
-          console.error("Init Error: ", error);
+          console.error(error);
         }
       }
 
