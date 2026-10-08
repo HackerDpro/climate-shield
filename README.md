@@ -49,6 +49,7 @@ I also learned a lot of new things about the climate in the process making this.
 * **NASA EONET & MODAPS** for the live telemetry.
 * **USGS** For the real-time lithospheric eathquake data.
 * **Open-Meteo** for topography, soil hydrology and weather data.
+* **Esri World Street Map** for the basemap tiles.
 * **Hack Club Nest** for the backend server hosting.
 * **Gemini (3.1 Pro)** Used to help translate complex JSON structures into WebGL inputs and to help optimize the Javascript performance to handle thousands of data points without lagging. (more info right under the screenshot)
 

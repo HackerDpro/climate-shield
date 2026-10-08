@@ -171,6 +171,13 @@
         display: flex; justify-content: space-between; padding: 12px 20px;
         border-bottom: 1px solid var(--border-tech); background: rgba(0,0,0,0.8);
       }
+      .recon-imagery-note {
+        position: absolute; top: 12px; left: 12px; z-index: 500;
+        max-width: calc(100% - 24px); padding: 8px 10px;
+        background: rgba(4, 6, 10, 0.88); border: var(--border-tech);
+        color: #e5e7eb; font: 0.7rem monospace; line-height: 1.4;
+        pointer-events: none;
+      }
       #recon-close {
         background: transparent; color: var(--neon-red); border: 1px solid var(--neon-red);
         cursor: pointer; font-family: monospace; padding: 4px 15px; border-radius: 4px; font-weight: bold;
@@ -378,12 +385,13 @@
       <!-- ========================================== -->
       <div id="recon-modal" class="view-state-1">
         <div id="recon-header">
-          <span style="color: var(--neon-cyan); font-weight: bold; letter-spacing: 2px;">🛰️ ORBITAL RECON MATRIX : LIVE DOWNLINK</span>
+          <span style="color: var(--neon-cyan); font-weight: bold; letter-spacing: 2px;">SATELLITE RECON | LATEST AVAILABLE IMAGERY</span>
           <button id="recon-close" onclick="closeRecon()">[ X ] CLOSE</button>
         </div>
         <div id="recon-content">
             <div id="recon-main-view" onclick="if(document.getElementById('recon-modal').classList.contains('view-state-2')) swapReconView();">
                 <div id="recon-map" style="width:100%; height:100%;"></div>
+              <div class="recon-imagery-note">SELECTED EVENT LOCATION · IMAGERY IS NOT LIVE<br>Esri satellite imagery · date varies by location</div>
             </div>
             <div id="recon-pip-view" onclick="if(document.getElementById('recon-modal').classList.contains('view-state-1')) swapReconView();">
                 <div class="pip-quadrant"><iframe id="pip-frame-1" frameborder="0"></iframe></div>
@@ -440,7 +448,11 @@
 
       let satelliteLayerGroup = L.layerGroup().addTo(map);
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 18, noWrap: true }).addTo(map);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19,
+        noWrap: true,
+        attribution: 'Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, &copy; OpenStreetMap contributors, and the GIS User Community'
+      }).addTo(map);
 
       async function fetchJSON(url) {
         const response = await fetch(url);
@@ -960,6 +972,7 @@
           }
 
           if (data.status === "success") {
+            document.getElementById("total-fires").innerText = data.total_global.toLocaleString();
             let highRiskCount = 0;
             const tableBody = document.getElementById("table-body-matrix");
             tableBody.innerHTML = "";
@@ -1002,10 +1015,13 @@
           initSatelliteTracking();
 
         } catch (error) {
+          document.getElementById("total-fires").innerText = "OFFLINE";
           logAIStream(`<span style="color:var(--neon-red)">CRITICAL SYSTEM FAILURE: Cannot reach backend.</span>`);
           console.error("Init Error: ", error);
         }
       }
+
+      initializeCommandCenter();
 
       async function initSatelliteTracking() {
           logAIStream("Fetching CelesTrak TLE Vectors for Orbital Swarm...");
@@ -1326,14 +1342,14 @@
           document.getElementById('recon-modal').className = 'view-state-1';
           
           if (!reconMapInstance) {
-              reconMapInstance = L.map('recon-map', { zoomControl: true }).setView([lat, lon], 14);
+              reconMapInstance = L.map('recon-map', { zoomControl: true }).setView([lat, lon], 17);
               L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                   maxZoom: 19,
-                  attribution: 'Tiles &copy; Esri'
+                  attribution: 'Imagery &copy; <a href="https://www.esri.com/en-us/legal/terms/full-master-agreement" target="_blank" rel="noopener">Esri</a>, Maxar, Earthstar Geographics, and the GIS User Community'
               }).addTo(reconMapInstance);
-              reconMarker = L.circleMarker([lat, lon], { radius: 8, color: '#00e5ff', weight: 2, fillColor: 'transparent' }).addTo(reconMapInstance);
+              reconMarker = L.circleMarker([lat, lon], { radius: 9, color: '#00e5ff', weight: 3, fillColor: '#00e5ff', fillOpacity: 0.35 }).addTo(reconMapInstance);
           } else {
-              reconMapInstance.setView([lat, lon], 14);
+              reconMapInstance.setView([lat, lon], 17);
               reconMarker.setLatLng([lat, lon]);
           }
 
@@ -1367,8 +1383,6 @@
           }
           setTimeout(() => reconMapInstance.invalidateSize(), 400);
       };
-
-      initializeCommandCenter();
 
     </script>
   </body>
