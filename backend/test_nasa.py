@@ -1,32 +1,43 @@
-import requests
+import unittest
+from unittest.mock import patch
 
-# NASA EONET API for Active Global Wildfires (No key needed!)
-url = "https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open"
+import main
+from main import _first_lat_lon
 
-print("🛰️ Initiating uplink to NASA EONET Wildfire network...")
 
-try:
-    # 10 second timeout so we don't freeze
-    response = requests.get(url, timeout=10)
+class FakeResponse:
+    status_code = 200
 
-    if response.status_code == 200:
-        # Convert the response into a Python dictionary (JSON)
-        data = response.json()
-        fires = data.get('events', [])
-        
-        print(f"✅ Uplink Successful! Found {len(fires)} active global wildfires right now.")
-        
-        # Print the name and coordinates of the very first fire on the list
-        if fires:
-            first_fire = fires[0]
-            title = first_fire.get('title')
-            # Extracting the coordinates (Longitude, Latitude)
-            coords = first_fire['geometry'][0]['coordinates']
-            print(f"🔥 First fire on radar: {title}")
-            print(f"📍 Coordinates: Longitude {coords[0]}, Latitude {coords[1]}")
-            
-    else:
-        print(f"❌ Connection failed. NASA said: {response.status_code}")
+    def json(self):
+        return {
+            "events": [
+                {"title": "Point event", "geometry": [{"coordinates": [-112.5, 35.2]}]},
+                {"title": "Polygon event", "geometry": [{"coordinates": [[[-112.4, 35.3], [-112.3, 35.4]]]}]},
+                {"title": "Invalid event", "geometry": [{"coordinates": []}]},
+                {"title": "Missing geometry", "geometry": None},
+            ]
+        }
 
-except Exception as e:
-    print(f"❌ An error occurred: {e}")
+
+class CoordinateParsingTests(unittest.TestCase):
+    def test_parses_point(self):
+        self.assertEqual(_first_lat_lon([-112.5, 35.2]), (35.2, -112.5))
+
+    def test_parses_nested_polygon_coordinates(self):
+        self.assertEqual(_first_lat_lon([[[-112.5, 35.2], [-112.4, 35.3]]]), (35.2, -112.5))
+
+    def test_rejects_empty_invalid_and_out_of_range_coordinates(self):
+        self.assertIsNone(_first_lat_lon([]))
+        self.assertIsNone(_first_lat_lon(["bad", 20]))
+        self.assertIsNone(_first_lat_lon([181, 20]))
+
+    @patch("main.requests.get", return_value=FakeResponse())
+    def test_events_normalize_point_and_polygon_geometries(self, _mock_get):
+        result = main.get_nasa_events("floods")
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["events"][1]["lat"], 35.3)
+        self.assertEqual(result["events"][1]["lon"], -112.4)
+
+
+if __name__ == "__main__":
+    unittest.main()

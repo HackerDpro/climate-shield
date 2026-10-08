@@ -5,7 +5,7 @@
 I created Climate Shield because I had in mind the idea of creating a dashboard that could show how the world is going, what is happening, and what might happen.
 I also learned a lot of new things about the climate in the process making this.
 
-[Test it here](https://climate-shield.netlify.app/) *(Update: I recently changed the backend from Render.com to a  Hack Club Nest server, so you no longer have to wait for the server to "wake up"! It's fast and always online.)*
+[Test it here](https://diego.hackclub.app/) *(The frontend and API are served together from the Hack Club Nest server.)*
 
 -------------
 ![Climate Shield Dashboard](screenshot.png)
@@ -48,7 +48,7 @@ I also learned a lot of new things about the climate in the process making this.
 ## Credits:
 * **NASA EONET & MODAPS** for the live telemetry.
 * **USGS** For the real-time lithospheric eathquake data.
-* **Open-Meteo & OpenWeatherMap** for the topography, soil hydrology and wind data.
+* **Open-Meteo** for topography, soil hydrology and weather data.
 * **Hack Club Nest** for the backend server hosting.
 * **Gemini (3.1 Pro)** Used to help translate complex JSON structures into WebGL inputs and to help optimize the Javascript performance to handle thousands of data points without lagging. (more info right under the screenshot)
 
@@ -61,15 +61,24 @@ I also learned a lot of new things about the climate in the process making this.
 
 ## Run it locally:
 
-1. Clone the repository:
+1. Clone the repository and enter its directory:
   git clone https://github.com/HackerDpro/climate-shield.git
-  cd climate-shield/backend
-2. Install the Python packages:
+  cd climate-shield
+2. Install the backend packages:
+  cd backend
   pip install -r requirements.txt
-3. Set up your env variables in a .env file:
-  OWM_KEY=open_weather_map_key
-  HF_TOKEN=hugging_face_token (currently not used in project so it is optional but may be used in later updates)
-  FIRMS_KEY=nasa_firms_map_key
-4. Start the FastAPI backend:
+3. Optionally set `FIRMS_KEY=nasa_firms_map_key` in `backend/.env` to enable raw FIRMS satellite heat data. Wind and ignition scans use Open-Meteo and need no API key.
+4. Start the backend:
   uvicorn main:app --reload
-5. Open index.html in your browser.
+5. In a second terminal, serve the frontend:
+  cd climate-shield/frontend
+  python -m http.server 8080
+6. Open `http://localhost:8080`. The page selects the local backend automatically and falls back to NASA EONET for wildfire data if the backend is unavailable.
+
+## Deploy on Nest
+
+The Nest domain `diego.hackclub.app` is configured to forward traffic to container port `8000`. Uvicorn must listen on the container's network interfaces for that forwarding to work; the local development command above is not the production command. The PM2 process should run this from `backend/`:
+
+  uvicorn main:app --host 0.0.0.0 --port 8000
+
+After changing the PM2 process, run `pm2 save` so it is restored after a container restart. Keep API keys in `backend/.env` on the server and never commit that file.

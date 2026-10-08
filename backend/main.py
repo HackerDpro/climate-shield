@@ -4,9 +4,11 @@ import requests
 import os
 import math
 import csv
+from pathlib import Path
 from io import StringIO
 from collections import Counter
 from dotenv import load_dotenv
+from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
@@ -25,6 +27,32 @@ OWM_KEY = os.getenv("OWM_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
 FIRMS_KEY = os.getenv("FIRMS_KEY") 
 
+
+def _first_lat_lon(coordinates):
+    while isinstance(coordinates, list) and coordinates and isinstance(coordinates[0], list):
+        coordinates = coordinates[0]
+    if not isinstance(coordinates, list) or len(coordinates) < 2:
+        return None
+    try:
+        lon, lat = float(coordinates[0]), float(coordinates[1])
+    except (TypeError, ValueError):
+        return None
+    if not (math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180):
+        return None
+    return lat, lon
+
+
+def _first_geometry_lat_lon(geometry):
+    if not isinstance(geometry, list):
+        return None
+    for item in geometry:
+        if isinstance(item, dict):
+            point = _first_lat_lon(item.get("coordinates"))
+            if point:
+                return point
+    return None
+
+
 @app.get("/api/satellites")
 def get_satellite_sources():
     """Fetches ACTUAL live satellite sensor sources from NASA EONET"""
@@ -40,18 +68,26 @@ def get_satellite_sources():
 
 @app.get("/api/wind")
 def get_wind_data(lat: float, lon: float):
-    if not OWM_KEY:
-        return {"speed": 0, "direction": 0, "error": "Missing OWM API Key"}
-    url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OWM_KEY}"
     try:
-        response = requests.get(url, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            wind = data.get('wind', {'speed': 0, 'deg': 0})
-            return {"speed": wind.get('speed', 0), "direction": wind.get('deg', 0)}
+        response = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "current": "wind_speed_10m,wind_direction_10m",
+                "wind_speed_unit": "ms",
+            },
+            timeout=5,
+        )
+        response.raise_for_status()
+        wind = response.json().get("current", {})
+        return {
+            "speed": float(wind["wind_speed_10m"]),
+            "direction": float(wind["wind_direction_10m"]),
+        }
     except Exception as e:
         print(f"[API ERROR] Fetching Wind Data: {e}")
-    return {"speed": 0, "direction": 0}
+    return {"speed": 0, "direction": 0, "error": "Wind data unavailable"}
 
 @app.get("/api/air_quality")
 def get_air_quality(lat: float, lon: float):
@@ -114,16 +150,13 @@ def get_active_fires():
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
-            fires = data.get('events', [])
+            fires = data.get('events') or []
             clean_fires = []
             for fire in fires:
                 title = fire.get('title', 'Unknown Wildfire')
-                geometry = fire.get('geometry', [])
-                if not geometry: continue
-                coords = geometry[0].get('coordinates', [])
-                if len(coords) < 2: continue
-                lon, lat = float(coords[0]), float(coords[1])
-                if -90 <= lat <= 90 and -180 <= lon <= 180:
+                point = _first_geometry_lat_lon(fire.get('geometry'))
+                if point:
+                    lat, lon = point
                     clean_fires.append({"title": title.replace("Wildfire", "").strip(), "lat": lat, "lon": lon})
             
             grid_counter = Counter()
@@ -148,18 +181,14 @@ def get_nasa_events(category: str):
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
-            events = data.get('events', [])
+            events = data.get('events') or []
             clean_events = []
             for event in events:
                 title = event.get('title', 'Unknown Event')
-                geometry = event.get('geometry', [])
-                if not geometry: continue
-                coords = geometry[0].get('coordinates', [])
-                if isinstance(coords[0], list):
-                    coords = coords[0][0]
-                if len(coords) < 2: continue
-                lon, lat = float(coords[0]), float(coords[1])
-                clean_events.append({"title": title, "lat": lat, "lon": lon, "category": category})
+                point = _first_geometry_lat_lon(event.get('geometry'))
+                if point:
+                    lat, lon = point
+                    clean_events.append({"title": title, "lat": lat, "lon": lon, "category": category})
             return {"status": "success", "total": len(clean_events), "events": clean_events}
         elif response.status_code == 503:
             return {"status": "error", "message": "NASA EONET API 503: Service Unavailable / Overloaded."}
@@ -170,28 +199,39 @@ def get_nasa_events(category: str):
 
 @app.get("/api/ignition_risk")
 def calculate_ignition_risk(lat: float, lon: float):
-    if not OWM_KEY:
-        return {"status": "error", "error": "Missing OpenWeatherMap API Key in Render environment."}
     try:
-        url_weather = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OWM_KEY}&units=metric"
-        res_weather = requests.get(url_weather, timeout=5)
-        if res_weather.status_code != 200:
-            return {"status": "error", "error": f"OWM API rejected request: {res_weather.status_code}"}
-        
-        weather_data = res_weather.json()
-        temp_c = weather_data["main"]["temp"]
-        humidity = weather_data["main"]["humidity"]
-        wind_speed_kmh = weather_data["wind"]["speed"] * 3.6
+        response = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "current": "temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation",
+                "hourly": "soil_moisture_0_to_7cm",
+                "forecast_days": 1,
+            },
+            timeout=5,
+        )
+        response.raise_for_status()
+        weather_data = response.json()
+        current = weather_data["current"]
+        temp_c = float(current["temperature_2m"])
+        humidity = float(current["relative_humidity_2m"])
+        wind_speed_kmh = float(current["wind_speed_10m"])
+        precipitation = float(current.get("precipitation", 0))
 
-        url_soil = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=soil_moisture_0_to_7cm,precipitation&forecast_days=1"
-        res_soil = requests.get(url_soil, timeout=5).json().get("hourly", {})
-        
-        soil_moisture = res_soil.get("soil_moisture_0_to_7cm", [0.5])[0]
-        precipitation = res_soil.get("precipitation", [0.0])[0]
+        hourly = weather_data.get("hourly", {})
+        times = hourly.get("time", [])
+        moisture_values = hourly.get("soil_moisture_0_to_7cm", [])
+        current_time = current.get("time")
+        try:
+            soil_index = times.index(current_time)
+            soil_moisture = float(moisture_values[soil_index])
+        except (ValueError, IndexError):
+            soil_moisture = float(moisture_values[0]) if moisture_values else 0.5
 
-        temp_factor = min(temp_c / 40.0, 1.0) * 0.35 
-        wind_factor = min(wind_speed_kmh / 50.0, 1.0) * 0.25 
-        dryness_factor = ((100 - humidity) / 100.0) * 0.20
+        temp_factor = min(max(temp_c, 0) / 40.0, 1.0) * 0.35
+        wind_factor = min(max(wind_speed_kmh, 0) / 50.0, 1.0) * 0.25
+        dryness_factor = (100 - min(max(humidity, 0), 100)) / 100.0 * 0.20
         soil_dryness_factor = max(0, (0.5 - soil_moisture) * 2) * 0.20
 
         raw_probability = temp_factor + wind_factor + dryness_factor + soil_dryness_factor
@@ -286,7 +326,7 @@ def get_raw_firms():
         csv_reader = csv.DictReader(StringIO(res.text))
         thermal_points = []
         for index, row in enumerate(csv_reader):
-            if index > 2000: break 
+            if index >= 2000: break
             try:
                 thermal_points.append({
                     "lat": float(row["latitude"]),
@@ -315,3 +355,10 @@ def get_co2_history():
     except Exception as e:
         print(f"[API ERROR] Fetching CO2 History: {e}")
         return {"status": "error", "message": str(e)}
+
+
+app.mount(
+    "/",
+    StaticFiles(directory=Path(__file__).resolve().parent.parent / "frontend", html=True),
+    name="frontend",
+)

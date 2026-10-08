@@ -429,15 +429,58 @@
       
       window.layerGroups.wildfires.addTo(map); 
 
-      const backendUrl = "https://diego.hackclub.app";   // or https if you set up SSL
+      const configuredBackend = new URLSearchParams(window.location.search).get("api");
+      const isLocalPage = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+      const backendUrl = (configuredBackend || (isLocalPage ? "http://127.0.0.1:8000" : "https://diego.hackclub.app")).replace(/\/+$/, "");
       let currentWindLine = null;
       let currentPlume = null;
+      let currentEvacRoute = null;
       let displayedFiresCount = 50;
       let currentSortMode = "desc";
 
       let satelliteLayerGroup = L.layerGroup().addTo(map);
 
       L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 18, noWrap: true }).addTo(map);
+
+      async function fetchJSON(url) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      }
+
+      function firstCoordinatePair(coordinates) {
+        while (Array.isArray(coordinates) && coordinates.length && Array.isArray(coordinates[0])) {
+          coordinates = coordinates[0];
+        }
+        if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+        const lon = Number(coordinates[0]);
+        const lat = Number(coordinates[1]);
+        return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180
+          ? { lat, lon }
+          : null;
+      }
+
+      async function fetchFiresFromEonet() {
+        const data = await fetchJSON("https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open");
+        const fires = [];
+        for (const event of data.events || []) {
+          for (const geometry of event.geometry || []) {
+            const point = firstCoordinatePair(geometry.coordinates);
+            if (point) {
+              fires.push({ title: (event.title || "Unknown Wildfire").replace("Wildfire", "").trim(), ...point });
+              break;
+            }
+          }
+        }
+        const density = new Map();
+        for (const fire of fires) {
+          const key = `${Math.round(fire.lon)},${Math.round(fire.lat)}`;
+          density.set(key, (density.get(key) || 0) + 1);
+        }
+        for (const fire of fires) fire.density_score = density.get(`${Math.round(fire.lon)},${Math.round(fire.lat)}`);
+        fires.sort((a, b) => b.density_score - a.density_score);
+        return { status: "success", total_global: fires.length, fires };
+      }
 
       // ==========================================================
       // PHASE 4: MACRO CLIMATE FEEDBACKS & PLUME MODELING
@@ -492,7 +535,7 @@
           
           if(dataIgnition.status === "error") {
              map.removeLayer(scanRing);
-             logAIStream(`<span style="color:var(--neon-red)">[ERROR] Ignition Scan Failed: ${dataIgnition.error || "Missing API Key or Rate Limited."}</span>`);
+             logAIStream(`<span style="color:var(--neon-red)">[ERROR] Ignition Scan Failed: ${dataIgnition.error || "Weather data unavailable or rate limited."}</span>`);
              return;
           }
 
@@ -606,27 +649,21 @@
       window.toggleVolcanoes = async function () {
         logAIStream(`[UPLINK] Querying Global Volcanic Ash Advisory Centers (VAAC)...`);
         try {
-          const res = await fetch(`${backendUrl}/api/volcanoes`);
-          const data = await res.json();
+          const data = await fetchJSON(`${backendUrl}/api/events?category=volcanoes`);
           if (!data || !data.events) return;
           document.getElementById('geo-json-log').innerText = JSON.stringify(data, null, 2);
 
-          window.globalLayerData.volcanoes = data.events.map((v) => ({
-            lat: parseFloat(v.geometry[0].coordinates[1]),
-            lon: parseFloat(v.geometry[0].coordinates[0]),
-            title: v.title
-          }));
+          window.globalLayerData.volcanoes = data.events;
 
           data.events.forEach((volcano) => {
-            const coords = volcano.geometry[0].coordinates;
-            const marker = L.circleMarker([parseFloat(coords[1]), parseFloat(coords[0])], { radius: 8, color: "#ff453a", weight: 2, fillColor: "#1a0505", fillOpacity: 0.9 });
+            const marker = L.circleMarker([volcano.lat, volcano.lon], { radius: 8, color: "#ff453a", weight: 2, fillColor: "#1a0505", fillOpacity: 0.9 });
             marker.bindPopup(`
                 <div style="font-family: monospace; font-size:0.8rem; color:#fff;">
                     <b style="color:#ff453a">🌋 ACTIVE VOLCANO</b><br>
                     <b>Target:</b> ${volcano.title}<br>
                     <b>Status:</b> Erupting / Ash Plume Detected<br>
                     <b>Threat:</b> High Aviation/Climate Risk<br>
-                    <button onclick="event.stopPropagation(); window.launchRecon(${coords[1]}, ${coords[0]})" style="width: 100%; padding: 8px; margin-top: 10px; background: rgba(0, 229, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: monospace; font-weight: bold; cursor: pointer; border-radius:3px;">LAUNCH ORBITAL RECON</button>
+                    <button onclick="event.stopPropagation(); window.launchRecon(${volcano.lat}, ${volcano.lon})" style="width: 100%; padding: 8px; margin-top: 10px; background: rgba(0, 229, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: monospace; font-weight: bold; cursor: pointer; border-radius:3px;">LAUNCH ORBITAL RECON</button>
                 </div>
             `);
             marker.on("click", function (e) { L.DomEvent.stopPropagation(e); });
@@ -698,10 +735,12 @@
       }
 
       function switchTeleTab(tabId) {
-          document.querySelectorAll('.tele-tab-btn').forEach(b => b.classList.remove('active'));
-          event.target.classList.add('active');
+          document.querySelectorAll('.tele-tab-btn').forEach((button) => {
+            button.classList.toggle('active', button.getAttribute('onclick') === `switchTeleTab('${tabId}')`);
+          });
           document.querySelectorAll('.tele-panel').forEach(p => p.classList.remove('active'));
-          document.getElementById('pane-' + tabId).classList.add('active');
+          const panel = document.getElementById('pane-' + tabId);
+          if (panel) panel.classList.add('active');
       }
 
       function logAIStream(message) {
@@ -895,16 +934,16 @@
       async function initializeCommandCenter() {
         try {
           logAIStream("Booting Main Terminal. Establishing NASA EONET uplink...");
-          
-          const [fireRes, satRes, co2Res] = await Promise.all([
-            fetch(`${backendUrl}/api/fires`),
-            fetch(`${backendUrl}/api/satellites`),
-            fetch(`${backendUrl}/api/co2_history`) 
+
+          const [fireResult, satResult, co2Result] = await Promise.allSettled([
+            fetchJSON(`${backendUrl}/api/fires`),
+            fetchJSON(`${backendUrl}/api/satellites`),
+            fetchJSON(`${backendUrl}/api/co2_history`)
           ]);
-          
-          const data = await fireRes.json();
-          const satData = await satRes.json();
-          const co2Data = await co2Res.json();
+          let data = fireResult.status === "fulfilled" ? fireResult.value : null;
+          if (!data || data.status !== "success") data = await fetchFiresFromEonet();
+          const satData = satResult.status === "fulfilled" ? satResult.value : { status: "error" };
+          const co2Data = co2Result.status === "fulfilled" ? co2Result.value : { status: "error" };
 
           if (co2Data.status === "success") {
               window.globalCO2Data = co2Data.data;
@@ -951,12 +990,12 @@
 
             renderThreatMatrix(true);
             document.getElementById("kpi-critical").innerText = highRiskCount;
-            document.getElementById("kpi-risk").innerText = ((highRiskCount / data.total_global) * 100).toFixed(1) + "%";
+            document.getElementById("kpi-risk").innerText = (data.total_global ? (highRiskCount / data.total_global) * 100 : 0).toFixed(1) + "%";
             
             let totalCarbonVal = window.globalLayerData.wildfires.reduce((acc, curr) => acc + (curr.density_score * 12.5), 0);
             document.getElementById("kpi-carbon").innerText = totalCarbonVal.toLocaleString() + " MW";
 
-            logAIStream(`Uplink processed ${data.total_global} total thermal events successfully.`);
+            logAIStream(`Uplink processed ${data.total_global} active wildfire events${fireResult.status === "rejected" ? " using direct NASA fallback" : ""}.`);
             if(myGlobe) updateGlobeData();
           }
 
@@ -1328,6 +1367,8 @@
           }
           setTimeout(() => reconMapInstance.invalidateSize(), 400);
       };
+
+      initializeCommandCenter();
 
     </script>
   </body>
