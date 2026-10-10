@@ -53,6 +53,32 @@
         border: var(--border-tech); box-shadow: 0 0 10px rgba(0, 243, 255, 0.15);
       }
 
+      #tutorial-overlay {
+        position: fixed; inset: 0; z-index: 12000; display: none;
+        align-items: center; justify-content: center; padding: 24px;
+        background: rgba(2, 4, 8, 0.72); backdrop-filter: blur(3px);
+      }
+      #tutorial-overlay.is-open { display: flex; }
+      #tutorial-dialog {
+        width: min(520px, 100%); background: rgba(10, 15, 24, 0.98);
+        border: 1px solid var(--neon-cyan); border-radius: 8px; padding: 24px;
+        box-shadow: 0 0 36px rgba(0, 229, 255, 0.24); font-family: monospace;
+      }
+      #tutorial-kicker { color: var(--neon-cyan); font-size: 0.7rem; letter-spacing: 2px; }
+      #tutorial-title { color: #fff; font-size: 1.35rem; margin: 8px 0 12px; }
+      #tutorial-copy { color: #c5cad4; line-height: 1.6; margin: 0; }
+      #tutorial-progress { height: 4px; margin: 20px 0; background: rgba(255,255,255,0.1); }
+      #tutorial-progress-bar { height: 100%; width: 0; background: var(--neon-cyan); transition: width 0.2s ease; }
+      .tutorial-actions { display: flex; justify-content: space-between; gap: 10px; }
+      .tutorial-action {
+        border: 1px solid rgba(0,229,255,0.35); background: rgba(0,229,255,0.08);
+        color: var(--neon-cyan); padding: 9px 14px; border-radius: 4px;
+        cursor: pointer; font: bold 0.75rem monospace;
+      }
+      .tutorial-action:hover { background: rgba(0,229,255,0.18); }
+      .tutorial-action.secondary { color: #a1a1aa; border-color: rgba(255,255,255,0.2); background: transparent; }
+      .tutorial-target { position: relative !important; z-index: 12001 !important; outline: 2px solid var(--neon-cyan) !important; box-shadow: 0 0 0 6px rgba(0,229,255,0.16) !important; }
+
       .dropdown { position: relative; display: inline-block; }
       .dropdown-content {
         display: none; position: absolute; top: 100%; left: 0;
@@ -296,6 +322,7 @@
             <button class="tele-tab-btn" onclick="switchTeleTab('atm-plumes')">🌪️ Atmosphere Data</button>
             <button class="tele-tab-btn" onclick="switchTeleTab('bio-mass')">🌲 Biomass Health</button>
             <button class="tele-tab-btn" onclick="switchTeleTab('geo-logs')">🖧 Geospatial Logs</button>
+          <button class="tele-tab-btn" onclick="openTutorial(true)">? Replay Tutorial</button>
         </div>
 
         <div class="tele-content-area">
@@ -420,6 +447,22 @@
                 <div class="pip-quadrant"><iframe id="pip-frame-3" frameborder="0"></iframe></div>
                 <div class="pip-quadrant"><iframe id="pip-frame-4" frameborder="0"></iframe></div>
             </div>
+        </div>
+      </div>
+
+      <div id="tutorial-overlay" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+        <div id="tutorial-dialog">
+          <div id="tutorial-kicker">CLIMATE SHIELD / FIRST FLIGHT</div>
+          <h2 id="tutorial-title">Welcome to the command center</h2>
+          <p id="tutorial-copy"></p>
+          <div id="tutorial-progress"><div id="tutorial-progress-bar"></div></div>
+          <div class="tutorial-actions">
+            <button class="tutorial-action secondary" onclick="skipTutorial()">Skip</button>
+            <div style="display:flex; gap:8px;">
+              <button class="tutorial-action secondary" id="tutorial-back" onclick="previousTutorialStep()">Back</button>
+              <button class="tutorial-action" id="tutorial-next" onclick="nextTutorialStep()">Next</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -938,6 +981,110 @@
           document.querySelectorAll('.tele-panel').forEach(p => p.classList.remove('active'));
           const panel = document.getElementById('pane-' + tabId);
           if (panel) panel.classList.add('active');
+      }
+
+      const tutorialSteps = [
+        {
+          selector: "#top-nav",
+          title: "Three ways to explore",
+          copy: "Tactical is the working map, Orbital is the 3D globe, and Telemetry is the data workspace. This navigation stays available while you move between them."
+        },
+        {
+          selector: ".dropdown",
+          title: "Choose the layers",
+          copy: "Open Tactical to switch hazards on and off. Wildfires are loaded first; earthquakes, volcanoes, storms, floods, drought alerts and FIRMS heat detections can be added when you need them."
+        },
+        {
+          selector: "#map",
+          title: "Read the map at the right scale",
+          copy: "At world scale, nearby records are grouped to keep the map responsive. Zoom in to reveal individual reports. The underlying data is kept; only the drawing is reduced."
+        },
+        {
+          selector: "#threat-matrix",
+          title: "Open a report",
+          copy: "Select a threat card or a visible fire marker to open its details. Wind, terrain and air quality are requested for that location, and the details stay available."
+        },
+        {
+          selector: ".map-style-options",
+          title: "Switch the basemap",
+          copy: "Use the Tactical menu to switch between the street map and Esri satellite imagery. Your choice is remembered in this browser."
+        },
+        {
+          selector: "#btn-orbital",
+          title: "See the global picture",
+          copy: "Orbital places the available event records on a 3D globe. It groups points at global scale so the scene stays usable on slower machines."
+        },
+        {
+          selector: "#btn-telemetry",
+          title: "Read the data workspace",
+          copy: "Telemetry contains charts, source status, CO2 history, satellite tracking and the explanation of what the project scores actually mean. You can replay this tutorial from there."
+        },
+        {
+          selector: "#tutorial-dialog",
+          title: "You are ready",
+          copy: "Use the dashboard as an exploration tool. FIRMS points are satellite heat detections, and the risk, spread and water numbers are experimental estimates rather than official emergency guidance."
+        }
+      ];
+      let tutorialStepIndex = 0;
+      let tutorialTarget = null;
+
+      function clearTutorialTarget() {
+        if (tutorialTarget) tutorialTarget.classList.remove("tutorial-target");
+        tutorialTarget = null;
+      }
+
+      function renderTutorialStep() {
+        const step = tutorialSteps[tutorialStepIndex];
+        clearTutorialTarget();
+        const target = document.querySelector(step.selector);
+        if (target && step.selector !== "#tutorial-dialog") {
+          tutorialTarget = target;
+          target.classList.add("tutorial-target");
+          target.scrollIntoView?.({ block: "center", behavior: "smooth" });
+        }
+        document.getElementById("tutorial-title").innerText = step.title;
+        document.getElementById("tutorial-copy").innerText = step.copy;
+        document.getElementById("tutorial-progress-bar").style.width = `${((tutorialStepIndex + 1) / tutorialSteps.length) * 100}%`;
+        document.getElementById("tutorial-back").style.visibility = tutorialStepIndex === 0 ? "hidden" : "visible";
+        document.getElementById("tutorial-next").innerText = tutorialStepIndex === tutorialSteps.length - 1 ? "Finish" : "Next";
+      }
+
+      window.openTutorial = function(force = false) {
+        if (!force) {
+          try {
+            if (localStorage.getItem("climateShieldTutorialCompleted") === "true") return;
+          } catch (error) {}
+        }
+        tutorialStepIndex = 0;
+        document.getElementById("tutorial-overlay").classList.add("is-open");
+        renderTutorialStep();
+      };
+
+      window.nextTutorialStep = function() {
+        if (tutorialStepIndex >= tutorialSteps.length - 1) {
+          try { localStorage.setItem("climateShieldTutorialCompleted", "true"); } catch (error) {}
+          closeTutorial();
+          return;
+        }
+        tutorialStepIndex += 1;
+        renderTutorialStep();
+      };
+
+      window.previousTutorialStep = function() {
+        if (tutorialStepIndex > 0) {
+          tutorialStepIndex -= 1;
+          renderTutorialStep();
+        }
+      };
+
+      window.skipTutorial = function() {
+        try { localStorage.setItem("climateShieldTutorialCompleted", "true"); } catch (error) {}
+        closeTutorial();
+      };
+
+      function closeTutorial() {
+        clearTutorialTarget();
+        document.getElementById("tutorial-overlay").classList.remove("is-open");
       }
 
       function logAIStream(message) {
@@ -1650,6 +1797,7 @@
           }
           setTimeout(() => reconMapInstance.invalidateSize(), 400);
       };
+          setTimeout(() => openTutorial(false), 1200);
 
     </script>
   </body>
