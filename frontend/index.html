@@ -23,12 +23,6 @@
         --neon-amber: #ff9f0a;
         --neon-green: #32d74b; 
         --text-main: #e5e7eb;
-                    <h2>Satellite Status</h2>
-                    <div class="metric-box" style="padding: 10px 15px">
-                      <div id="satellite-container" style="font-family: monospace; font-size: 0.75rem; color:#a1a1aa;">
-                        Establishing EONET uplink...
-                      </div>
-                    </div>
         --border-tech: 1px solid rgba(0, 229, 255, 0.2);
       }
 
@@ -39,13 +33,14 @@
         font-family: 'Roboto', sans-serif;
         background-color: var(--bg-primary);
         color: var(--text-main);
-                    <div style="font-size: 0.75rem; color: #a1a1aa">SHARE IN HIGH-DENSITY CELLS</div>
+      }
 
       /* Fixed Navigation Header with Dropdown Support */
       #top-nav {
-        position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-        z-index: 1000; display: flex; gap: 10px; background: rgba(4, 6, 10, 0.85);
+        position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
+        z-index: 11000; display: flex; gap: 10px; background: rgba(4, 6, 10, 0.92);
         padding: 6px 12px; border-radius: 6px; border: var(--border-tech);
+        isolation: isolate; visibility: visible; opacity: 1;
       }
       .nav-btn {
         background: transparent; border: 1px solid transparent; color: #4b5563;
