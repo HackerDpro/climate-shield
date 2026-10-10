@@ -70,10 +70,11 @@
         border: 1px solid var(--neon-cyan); border-radius: 8px; padding: 24px;
         box-shadow: 0 0 36px rgba(0, 229, 255, 0.24); font-family: monospace;
         position: fixed; z-index: 12002; pointer-events: auto;
-        top: 50%; left: 50%; transform: translate(-50%, -50%);
+        top: 58%; left: 50%; transform: translate(-50%, -50%);
         transition: top 0.35s ease, left 0.35s ease, transform 0.35s ease;
       }
-      #tutorial-overlay.tutorial-position-layers #tutorial-dialog { top: 64%; left: 50%; }
+      #tutorial-overlay.tutorial-position-center #tutorial-dialog { top: 58%; left: 50%; }
+      #tutorial-overlay.tutorial-position-layers #tutorial-dialog { top: 68%; left: 50%; }
       #tutorial-overlay.tutorial-position-report #tutorial-dialog { top: 38%; left: 50%; }
       #tutorial-overlay.tutorial-position-basemap #tutorial-dialog { top: 64%; left: 68%; }
       #tutorial-overlay.tutorial-position-orbital #tutorial-dialog { top: 20%; left: 30%; }
@@ -541,14 +542,25 @@
 
       function focusMapPoint(lat, lon, zoom, reveal) {
         let revealed = false;
+        let nudged = false;
         const show = () => {
           if (revealed) return;
           revealed = true;
           reveal();
         };
-        map.once("moveend", show);
+        const nudgeDown = () => {
+          if (nudged) return;
+          nudged = true;
+          if (!map.panBy) {
+            show();
+            return;
+          }
+          map.panBy([0, 110], { animate: true, duration: 0.25 });
+          setTimeout(show, 320);
+        };
+        map.once("moveend", nudgeDown);
         map.setView([lat, lon], zoom, { animate: true });
-        setTimeout(show, 650);
+        setTimeout(nudgeDown, 650);
       }
 
       const basemapLayers = {
