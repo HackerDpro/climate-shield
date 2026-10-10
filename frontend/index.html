@@ -541,26 +541,7 @@
       let satelliteLayerGroup = L.layerGroup().addTo(map);
 
       function focusMapPoint(lat, lon, zoom, reveal) {
-        let revealed = false;
-        let nudged = false;
-        const show = () => {
-          if (revealed) return;
-          revealed = true;
-          reveal();
-        };
-        const nudgeDown = () => {
-          if (nudged) return;
-          nudged = true;
-          if (!map.panBy) {
-            show();
-            return;
-          }
-          map.panBy([0, 110], { animate: true, duration: 0.25 });
-          setTimeout(show, 320);
-        };
-        map.once("moveend", nudgeDown);
-        map.setView([lat, lon], zoom, { animate: true });
-        setTimeout(nudgeDown, 650);
+        reveal();
       }
 
       const basemapLayers = {
