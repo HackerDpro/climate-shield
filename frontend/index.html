@@ -69,8 +69,15 @@
         width: min(520px, 100%); background: rgba(10, 15, 24, 0.98);
         border: 1px solid var(--neon-cyan); border-radius: 8px; padding: 24px;
         box-shadow: 0 0 36px rgba(0, 229, 255, 0.24); font-family: monospace;
-        position: relative; z-index: 12002; pointer-events: auto;
+        position: fixed; z-index: 12002; pointer-events: auto;
+        top: 50%; left: 50%; transform: translate(-50%, -50%);
+        transition: top 0.35s ease, left 0.35s ease, transform 0.35s ease;
       }
+      #tutorial-overlay.tutorial-position-layers #tutorial-dialog { top: 64%; left: 50%; }
+      #tutorial-overlay.tutorial-position-report #tutorial-dialog { top: 38%; left: 50%; }
+      #tutorial-overlay.tutorial-position-basemap #tutorial-dialog { top: 64%; left: 68%; }
+      #tutorial-overlay.tutorial-position-orbital #tutorial-dialog { top: 20%; left: 30%; }
+      #tutorial-overlay.tutorial-position-telemetry #tutorial-dialog { top: 76%; left: 72%; }
       #tutorial-kicker { color: var(--neon-cyan); font-size: 0.7rem; letter-spacing: 2px; }
       #tutorial-title { color: #fff; font-size: 1.35rem; margin: 8px 0 12px; }
       #tutorial-copy { color: #c5cad4; line-height: 1.6; margin: 0; }
@@ -995,41 +1002,57 @@
         {
           selector: "#top-nav",
           title: "Three ways to explore",
+          position: "center",
+          mode: "tactical",
           copy: "Tactical is the working map, Orbital is the 3D globe, and Telemetry is the data workspace. This navigation stays available while you move between them."
         },
         {
           selector: ".dropdown-content",
           title: "Choose the layers",
+          position: "layers",
+          mode: "tactical",
           copy: "Open Tactical to switch hazards on and off. Wildfires are loaded first; earthquakes, volcanoes, storms, floods, drought alerts and FIRMS heat detections can be added when you need them."
         },
         {
           selector: "#map",
           title: "Read the map at the right scale",
+          position: "center",
+          mode: "tactical",
           copy: "At world scale, nearby records are grouped to keep the map responsive. Zoom in to reveal individual reports. The underlying data is kept; only the drawing is reduced."
         },
         {
           selector: "#threat-matrix",
           title: "Open a report",
+          position: "report",
+          mode: "tactical",
           copy: "Select a threat card or a visible fire marker to open its details. Wind, terrain and air quality are requested for that location, and the details stay available."
         },
         {
           selector: ".map-style-options",
           title: "Switch the basemap",
+          position: "basemap",
+          mode: "tactical",
           copy: "Use the Tactical menu to switch between the street map and Esri satellite imagery. Your choice is remembered in this browser."
         },
         {
           selector: "#btn-orbital",
           title: "See the global picture",
+          position: "orbital",
+          mode: "orbital",
           copy: "Orbital places the available event records on a 3D globe. It groups points at global scale so the scene stays usable on slower machines."
         },
         {
           selector: "#btn-telemetry",
           title: "Read the data workspace",
+          position: "telemetry",
+          mode: "telemetry",
           copy: "Telemetry contains charts, source status, CO2 history, satellite tracking and the explanation of what the project scores actually mean. You can replay this tutorial from there."
         },
         {
           selector: "#tutorial-dialog",
           title: "You are ready",
+          position: "center",
+          mode: "tactical",
           copy: "Use the dashboard as an exploration tool. FIRMS points are satellite heat detections, and the risk, spread and water numbers are experimental estimates rather than official emergency guidance."
         }
       ];
@@ -1047,7 +1070,10 @@
 
       function renderTutorialStep() {
         const step = tutorialSteps[tutorialStepIndex];
+        if (step.mode && document.body.className !== `view-${step.mode}`) switchMode(step.mode);
         clearTutorialTarget();
+        const overlay = document.getElementById("tutorial-overlay");
+        overlay.className = `is-open tutorial-position-${step.position || "center"}`;
         const target = document.querySelector(step.selector);
         if (target && step.selector !== "#tutorial-dialog") {
           tutorialTarget = target;
@@ -1078,8 +1104,8 @@
             if (localStorage.getItem("climateShieldTutorialCompleted") === "true") return;
           } catch (error) {}
         }
+        switchMode("tactical");
         tutorialStepIndex = 0;
-        document.getElementById("tutorial-overlay").classList.add("is-open");
         renderTutorialStep();
       };
 
