@@ -1221,15 +1221,25 @@
         logAIStream(`Initiated multipoint sensor sweep for: ${fire.lat.toFixed(2)}, ${fire.lon.toFixed(2)}`);
 
         try {
-          const [resWind, resAQ] = await Promise.all([
+          const [windResult, aqResult] = await Promise.allSettled([
             fetch(`${backendUrl}/api/wind?lat=${fire.lat}&lon=${fire.lon}`),
             fetch(`${backendUrl}/api/air_quality?lat=${fire.lat}&lon=${fire.lon}`),
           ]);
 
-          const wind = await resWind.json();
-          const aq = await resAQ.json();
-          const terrainResponse = await fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=${wind.direction}`);
-          const terrain = await terrainResponse.json();
+          const wind = windResult.status === "fulfilled" && windResult.value.ok
+            ? await windResult.value.json()
+            : { speed: 0, direction: 0, error: "Wind data unavailable" };
+          const aq = aqResult.status === "fulfilled" && aqResult.value.ok
+            ? await aqResult.value.json()
+            : { status: "offline", pm2_5: "N/A", co: "N/A" };
+
+          let terrain = { status: "fallback", elevation_meters: "Unknown", terrain_status: "TERRAIN DATA OFFLINE", spread_multiplier: 1 };
+          try {
+            const terrainResponse = await fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=${wind.direction}`);
+            if (terrainResponse.ok) terrain = await terrainResponse.json();
+          } catch (terrainError) {
+            console.warn("Terrain data unavailable:", terrainError);
+          }
 
           fire.liveWind = wind;
           fire.liveTerrain = terrain;
@@ -1244,7 +1254,8 @@
           let threatColor = hazardIndex >= 65 ? "#ff453a" : hazardIndex >= 35 ? "#ff9f0a" : "#32d74b";
           const speedKmh = (wind.speed * 3.6).toFixed(1);
           const projectedSpread = (wind.speed * 0.22 * 24 * terrain.spread_multiplier).toFixed(2);
-          let aqColor = aq.pm2_5 > 50 ? "#ff453a" : aq.pm2_5 > 15 ? "#ff9f0a" : "#32d74b";
+          const pm25 = Number(aq.pm2_5);
+          let aqColor = !Number.isFinite(pm25) ? "#a1a1aa" : pm25 > 50 ? "#ff453a" : pm25 > 15 ? "#ff9f0a" : "#32d74b";
 
               fire.popupHtml = `
             <div style="font-family: monospace; min-width: 290px; font-size: 0.8rem; line-height: 1.5;">
@@ -1283,9 +1294,9 @@
 
           currentWindLine = L.polyline([[fire.lat, fire.lon], [fire.lat + latOffset, fire.lon + lonOffset]], { color: threatColor, weight: 4, opacity: 0.9, dashArray: "5, 5" }).addTo(map);
 
-          drawToxicPlume(fire.lat, fire.lon, wind.speed * 3.6, wind.direction, aq.pm2_5);
+          if (Number.isFinite(pm25)) drawToxicPlume(fire.lat, fire.lon, wind.speed * 3.6, wind.direction, pm25);
         } catch (err) {
-          logAIStream(`<span style="color:var(--neon-red)">ERROR: Packet loss on coordinates ${fire.lat.toFixed(2)}</span>`);
+          logAIStream(`<span style="color:var(--neon-red)">ERROR: Detail calculation failed at ${fire.lat.toFixed(2)}, ${fire.lon.toFixed(2)}: ${err.message || "unknown error"}</span>`);
           console.error("Inspect Fire Error: ", err);
         }
       }
