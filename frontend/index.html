@@ -539,6 +539,18 @@
 
       let satelliteLayerGroup = L.layerGroup().addTo(map);
 
+      function focusMapPoint(lat, lon, zoom, reveal) {
+        let revealed = false;
+        const show = () => {
+          if (revealed) return;
+          revealed = true;
+          reveal();
+        };
+        map.once("moveend", show);
+        map.setView([lat, lon], zoom, { animate: true });
+        setTimeout(show, 650);
+      }
+
       const basemapLayers = {
         street: {
           url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
@@ -635,7 +647,7 @@
             marker.bindPopup(`<b>Grouped map reports</b><br>${cluster.incidents} EONET incidents<br>${cluster.detections} FIRMS thermal detections<br>Zoom in to inspect individual reports.`);
             marker.on("click", function (event) {
               L.DomEvent.stopPropagation(event);
-              map.setView(center, Math.min(19, Math.max(6, zoom + 2)));
+              focusMapPoint(center[0], center[1], Math.min(19, Math.max(6, zoom + 2)), () => marker.openPopup());
             });
             layer.addLayer(marker);
           });
@@ -746,11 +758,12 @@
         const lon = parseFloat(e.latlng.lng);
 
         const scanRing = L.circle([lat, lon], { color: "#00e5ff", weight: 2, fillColor: "#00e5ff", fillOpacity: 0.1, radius: 80000, dashArray: "4, 6" }).addTo(map);
-        scanRing.bindPopup(`<span style="color:var(--neon-cyan); font-family:monospace;">Initiating Biomass & Ignition Scan...</span><br>
+        const scanPopup = `<span style="color:var(--neon-cyan); font-family:monospace;">Initiating Biomass & Ignition Scan...</span><br>
             <button onclick="event.stopPropagation(); window.launchRecon(${lat}, ${lon})" style="width: 100%; padding: 8px; margin-top: 10px; background: rgba(0, 229, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: monospace; font-weight: bold; cursor: pointer; border-radius:3px;">
                 LAUNCH ORBITAL RECON (LIVE FEEDS)
             </button>
-        `).openPopup();
+        `;
+        focusMapPoint(lat, lon, Math.max(map.getZoom(), 6), () => scanRing.bindPopup(scanPopup).openPopup());
         
         logAIStream(`Initiating predictive scan at sector [${lat.toFixed(2)}, ${lon.toFixed(2)}]...`);
 
@@ -861,7 +874,10 @@
                       marker.bindPopup(`<b style="color:${color}; text-transform:uppercase;">${label} DETECTED</b><br>${event.title}<br><b>Sources:</b> ${(event.sources || [event.source || "NASA EONET"]).join(", ")}${event.alert_level ? `<br><b>GDACS alert:</b> ${event.alert_level}` : ""}${event.observed_at ? `<br><b>Updated:</b> ${event.observed_at}` : ""}
                           <br><button onclick="event.stopPropagation(); window.launchRecon(${event.lat}, ${event.lon})" style="width: 100%; padding: 8px; margin-top: 10px; background: rgba(0, 229, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: monospace; font-weight: bold; cursor: pointer; border-radius:3px;">LAUNCH ORBITAL RECON</button>
                       `);
-                      marker.on("click", function (e) { L.DomEvent.stopPropagation(e); });
+                      marker.on("click", function (e) {
+                        L.DomEvent.stopPropagation(e);
+                        focusMapPoint(event.lat, event.lon, Math.max(map.getZoom(), 6), () => marker.openPopup());
+                      });
                       window.layerGroups[category].addLayer(marker);
                   });
                   logAIStream(`<span style="color:var(--neon-green)">[SYNC] Rendered ${data.total} active ${category} incidents.</span>`);
@@ -914,7 +930,10 @@
                     <button onclick="event.stopPropagation(); window.launchRecon(${volcano.lat}, ${volcano.lon})" style="width: 100%; padding: 8px; margin-top: 10px; background: rgba(0, 229, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: monospace; font-weight: bold; cursor: pointer; border-radius:3px;">LAUNCH ORBITAL RECON</button>
                 </div>
             `);
-            marker.on("click", function (e) { L.DomEvent.stopPropagation(e); });
+            marker.on("click", function (e) {
+              L.DomEvent.stopPropagation(e);
+              focusMapPoint(volcano.lat, volcano.lon, Math.max(map.getZoom(), 6), () => marker.openPopup());
+            });
             window.layerGroups.volcanoes.addLayer(marker);
           });
           logAIStream(`<span style="color:#ff453a">[VOLCANIC] Mapped ${data.events.length} active stratospheric ash injections.</span>`);
@@ -1004,49 +1023,49 @@
           title: "Three ways to explore",
           position: "center",
           mode: "tactical",
-          copy: "Tactical is the working map, Orbital is the 3D globe, and Telemetry is the data workspace. This navigation stays available while you move between them."
+          copy: "Tactical is the working map, Orbital is the 3D globe, and Telemetry is the data workspace."
         },
         {
           selector: ".dropdown-content",
           title: "Choose the layers",
           position: "layers",
           mode: "tactical",
-          copy: "Open Tactical to switch hazards on and off. Wildfires are loaded first; earthquakes, volcanoes, storms, floods, drought alerts and FIRMS heat detections can be added when you need them."
+          copy: "Open Tactical to switch hazards on and off. Wildfires are loaded first the others can be added when you need them."
         },
         {
           selector: "#map",
           title: "Read the map at the right scale",
           position: "center",
           mode: "tactical",
-          copy: "At world scale, nearby records are grouped to keep the map responsive. Zoom in to reveal individual reports. The underlying data is kept; only the drawing is reduced."
+          copy: "At world scale, nearby records are grouped to keep the map responsive. Zoom in to reveal individual reports."
         },
         {
           selector: "#threat-matrix",
           title: "Open a report",
           position: "report",
           mode: "tactical",
-          copy: "Select a threat card or a visible fire marker to open its details. Wind, terrain and air quality are requested for that location, and the details stay available."
+          copy: "Select a threat card or a visible fire marker to open its details. Wind, terrain and air quality are requested for that location."
         },
         {
           selector: ".map-style-options",
           title: "Switch the basemap",
           position: "basemap",
           mode: "tactical",
-          copy: "Use the Tactical menu to switch between the street map and Esri satellite imagery. Your choice is remembered in this browser."
+          copy: "Use the Tactical menu to switch between the street map and Esri satellite imagery."
         },
         {
           selector: "#btn-orbital",
           title: "See the global picture",
           position: "orbital",
           mode: "orbital",
-          copy: "Orbital places the available event records on a 3D globe. It groups points at global scale so the scene stays usable on slower machines."
+          copy: "Orbital places the events on a 3D globe. It groups points at global scale."
         },
         {
           selector: "#btn-telemetry",
           title: "Read the data workspace",
           position: "telemetry",
           mode: "telemetry",
-          copy: "Telemetry contains charts, source status, CO2 history, satellite tracking and the explanation of what the project scores actually mean. You can replay this tutorial from there."
+          copy: "Telemetry contains charts, source status, CO2 history, satellite tracking,... You can replay this tutorial from there."
         },
         {
           selector: "#tutorial-dialog",
@@ -1150,7 +1169,6 @@
       // ==========================================================
       async function inspectFire(fire) {
         if (fire.event_type === "thermal_detection") {
-          map.setView([fire.lat, fire.lon], 9);
           window.layerGroups.wildfires.addTo(map);
           if (!fire.markerRef || !window.layerGroups.wildfires.hasLayer(fire.markerRef)) {
             fire.markerRef = createFireMarker(fire);
@@ -1170,13 +1188,12 @@
             </div>
           `;
           fire.popupOpen = true;
-          fire.markerRef.bindPopup(fire.popupHtml).openPopup();
+          focusMapPoint(fire.lat, fire.lon, 9, () => fire.markerRef.bindPopup(fire.popupHtml).openPopup());
           logAIStream(`Opened FIRMS thermal cluster with ${fire.detection_count || 1} satellite detection(s).`);
           return;
         }
 
         const startTime = performance.now();
-        map.setView([parseFloat(fire.lat), parseFloat(fire.lon)], 9);
         window.layerGroups.wildfires.addTo(map);
         if (!fire.markerRef || !window.layerGroups.wildfires.hasLayer(fire.markerRef)) {
           fire.markerRef = createFireMarker(fire);
@@ -1186,7 +1203,7 @@
 
         fire.popupHtml = `<b>${fire.title}</b><br><span style='color:var(--neon-cyan);'>Querying multiple orbital APIs...</span>`;
         fire.popupOpen = true;
-        fire.markerRef.bindPopup(fire.popupHtml, { offset: [0, -10] }).openPopup();
+        focusMapPoint(parseFloat(fire.lat), parseFloat(fire.lon), 9, () => fire.markerRef.bindPopup(fire.popupHtml, { offset: [0, -10] }).openPopup());
 
         if (currentWindLine) map.removeLayer(currentWindLine);
         logAIStream(`Initiated multipoint sensor sweep for: ${fire.lat.toFixed(2)}, ${fire.lon.toFixed(2)}`);
@@ -1521,6 +1538,7 @@
 
                           if(!data.marker) {
                               data.marker = L.circleMarker([lat, lon], { radius: 6, color: '#00e5ff', weight: 2, fillColor: '#000', fillOpacity: 1 }).bindPopup(`<b>${name}</b>`).addTo(satelliteLayerGroup);
+                              data.marker.on("click", () => focusMapPoint(lat, lon, Math.max(map.getZoom(), 5), () => data.marker.openPopup()));
                           } else {
                               data.marker.setLatLng([lat, lon]);
                           }
@@ -1653,7 +1671,10 @@
             const radius = magnitude === null ? 12000 : Math.max(6000, magnitude * 12000);
             const marker = L.circle([quake.lat, quake.lon], { color: eqColor, weight: 2, fillColor: eqColor, fillOpacity: 0.3, radius });
             marker.bindPopup(`<b style="color:${eqColor}">EARTHQUAKE REPORT</b><br>${quake.title}<br><b>Sources:</b> ${(quake.sources || ["USGS"]).join(", ")}<br><b>Magnitude:</b> ${magnitude === null ? "Not reported" : `${magnitude} M`}<br><b>Depth:</b> ${Number.isFinite(quake.depth) ? `${quake.depth} km` : "Not reported"}${quake.alertLevel ? `<br><b>GDACS alert:</b> ${quake.alertLevel}` : ""}`);
-            marker.on("click", function (e) { L.DomEvent.stopPropagation(e); }); 
+            marker.on("click", function (e) {
+              L.DomEvent.stopPropagation(e);
+              focusMapPoint(quake.lat, quake.lon, Math.max(map.getZoom(), 6), () => marker.openPopup());
+            });
             window.layerGroups.earthquakes.addLayer(marker);
           });
           logAIStream(`<span style="color:#ff9f0a">[SEISMIC] Background thread parsed ${data.length} global fractures.</span>`);
@@ -1669,7 +1690,10 @@
             rawFRPTotal += pt.frp;
             const marker = L.circle([pt.lat, pt.lon], { color: "transparent", weight: 0, fillColor: "#00e5ff", fillOpacity: 0.6, radius: 2500 });
             marker.bindPopup(`<b style="color:#00e5ff">SATELLITE HEAT SENSORS</b><br><b>Fire Intensity (FRP):</b> ${pt.frp} MW<br><b>Ground Heat:</b> ${pt.temp} K`);
-            marker.on("click", function (e) { L.DomEvent.stopPropagation(e); });
+            marker.on("click", function (e) {
+              L.DomEvent.stopPropagation(e);
+              focusMapPoint(pt.lat, pt.lon, Math.max(map.getZoom(), 8), () => marker.openPopup());
+            });
             window.layerGroups.firms.addLayer(marker);
           });
 
@@ -1710,7 +1734,12 @@
           .onPointClick((fire) => {
             logAIStream(`Orbital focus shifted to sector: ${fire.title}`);
             switchMode("tactical");
-            map.setView([fire.lat, fire.lon], 6);
+            const sourceFire = window.globalLayerData.wildfires.find((item) =>
+              item.lat === fire.lat && item.lon === fire.lon
+            );
+            focusMapPoint(fire.lat, fire.lon, 6, () => {
+              if (sourceFire) inspectFire(sourceFire);
+            });
           });
 
         const scene = myGlobe.scene();
