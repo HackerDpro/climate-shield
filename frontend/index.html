@@ -1092,7 +1092,8 @@
           tutorialTargetDropdown = target.closest(".dropdown");
           if (tutorialTargetDropdown) tutorialTargetDropdown.classList.add("tutorial-open");
           target.scrollIntoView?.({ block: "center", behavior: "smooth" });
-          requestAnimationFrame(() => {
+          const scheduleSpotlight = window.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
+          scheduleSpotlight(() => {
             const rect = target.getBoundingClientRect();
             const spotlight = document.getElementById("tutorial-spotlight");
             if (!spotlight || rect.width === 0 || rect.height === 0) return;
