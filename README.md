@@ -2,7 +2,7 @@
 
 Climate Shield is a world-map dashboard for exploring wildfire reports and other environmental events.
 
-![Climate Shield dashboard](screenshot.png)
+![Climate Shield dashboard](screenshot1.png)
 
 **Try the live dashboard:** [climate-shield.netlify.app](https://climate-shield.netlify.app/)
 
