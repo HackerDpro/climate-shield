@@ -56,13 +56,20 @@
       #tutorial-overlay {
         position: fixed; inset: 0; z-index: 12000; display: none;
         align-items: center; justify-content: center; padding: 24px;
-        background: rgba(2, 4, 8, 0.72); backdrop-filter: blur(3px);
+        background: transparent; pointer-events: none;
       }
       #tutorial-overlay.is-open { display: flex; }
+      #tutorial-spotlight {
+        position: fixed; display: none; pointer-events: none; z-index: 12000;
+        border: 2px solid var(--neon-cyan); border-radius: 6px;
+        box-shadow: 0 0 0 9999px rgba(2, 4, 8, 0.78), 0 0 24px rgba(0,229,255,0.55);
+        transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+      }
       #tutorial-dialog {
         width: min(520px, 100%); background: rgba(10, 15, 24, 0.98);
         border: 1px solid var(--neon-cyan); border-radius: 8px; padding: 24px;
         box-shadow: 0 0 36px rgba(0, 229, 255, 0.24); font-family: monospace;
+        position: relative; z-index: 12002; pointer-events: auto;
       }
       #tutorial-kicker { color: var(--neon-cyan); font-size: 0.7rem; letter-spacing: 2px; }
       #tutorial-title { color: #fff; font-size: 1.35rem; margin: 8px 0 12px; }
@@ -77,7 +84,7 @@
       }
       .tutorial-action:hover { background: rgba(0,229,255,0.18); }
       .tutorial-action.secondary { color: #a1a1aa; border-color: rgba(255,255,255,0.2); background: transparent; }
-      .tutorial-target { position: relative !important; z-index: 12001 !important; outline: 2px solid var(--neon-cyan) !important; box-shadow: 0 0 0 6px rgba(0,229,255,0.16) !important; }
+      .dropdown.tutorial-open .dropdown-content { display: flex; flex-direction: column; gap: 10px; }
 
       .dropdown { position: relative; display: inline-block; }
       .dropdown-content {
@@ -451,6 +458,7 @@
       </div>
 
       <div id="tutorial-overlay" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+        <div id="tutorial-spotlight" aria-hidden="true"></div>
         <div id="tutorial-dialog">
           <div id="tutorial-kicker">CLIMATE SHIELD / FIRST FLIGHT</div>
           <h2 id="tutorial-title">Welcome to the command center</h2>
@@ -990,7 +998,7 @@
           copy: "Tactical is the working map, Orbital is the 3D globe, and Telemetry is the data workspace. This navigation stays available while you move between them."
         },
         {
-          selector: ".dropdown",
+          selector: ".dropdown-content",
           title: "Choose the layers",
           copy: "Open Tactical to switch hazards on and off. Wildfires are loaded first; earthquakes, volcanoes, storms, floods, drought alerts and FIRMS heat detections can be added when you need them."
         },
@@ -1027,10 +1035,14 @@
       ];
       let tutorialStepIndex = 0;
       let tutorialTarget = null;
+      let tutorialTargetDropdown = null;
 
       function clearTutorialTarget() {
-        if (tutorialTarget) tutorialTarget.classList.remove("tutorial-target");
+        if (tutorialTargetDropdown) tutorialTargetDropdown.classList.remove("tutorial-open");
+        const spotlight = document.getElementById("tutorial-spotlight");
+        if (spotlight) spotlight.style.display = "none";
         tutorialTarget = null;
+        tutorialTargetDropdown = null;
       }
 
       function renderTutorialStep() {
@@ -1039,8 +1051,19 @@
         const target = document.querySelector(step.selector);
         if (target && step.selector !== "#tutorial-dialog") {
           tutorialTarget = target;
-          target.classList.add("tutorial-target");
+          tutorialTargetDropdown = target.closest(".dropdown");
+          if (tutorialTargetDropdown) tutorialTargetDropdown.classList.add("tutorial-open");
           target.scrollIntoView?.({ block: "center", behavior: "smooth" });
+          requestAnimationFrame(() => {
+            const rect = target.getBoundingClientRect();
+            const spotlight = document.getElementById("tutorial-spotlight");
+            if (!spotlight || rect.width === 0 || rect.height === 0) return;
+            spotlight.style.display = "block";
+            spotlight.style.left = `${Math.max(8, rect.left - 8)}px`;
+            spotlight.style.top = `${Math.max(8, rect.top - 8)}px`;
+            spotlight.style.width = `${rect.width + 16}px`;
+            spotlight.style.height = `${rect.height + 16}px`;
+          });
         }
         document.getElementById("tutorial-title").innerText = step.title;
         document.getElementById("tutorial-copy").innerText = step.copy;
