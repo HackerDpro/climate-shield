@@ -4,9 +4,16 @@ import requests
 import os
 import math
 import csv
+import re
+import time
+import threading
+import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from io import StringIO
-from collections import Counter
+from collections import Counter, defaultdict
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from dotenv import load_dotenv
 from fastapi.staticfiles import StaticFiles
 
@@ -26,6 +33,8 @@ app.add_middleware(
 OWM_KEY = os.getenv("OWM_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
 FIRMS_KEY = os.getenv("FIRMS_KEY") 
+_GDACS_CACHE_LOCK = threading.Lock()
+_GDACS_CACHE = {"expires_at": 0, "events": []}
 
 
 def _first_lat_lon(coordinates):
@@ -51,6 +60,295 @@ def _first_geometry_lat_lon(geometry):
             if point:
                 return point
     return None
+
+
+def _latest_geometry(geometry):
+    candidates = []
+    for item in geometry or []:
+        if not isinstance(item, dict):
+            continue
+        point = _first_lat_lon(item.get("coordinates"))
+        if point:
+            candidates.append((str(item.get("date") or ""), point))
+    return max(candidates, key=lambda candidate: candidate[0]) if candidates else None
+
+
+def _parse_firms_timestamp(date, acquisition_time):
+    try:
+        time_text = str(acquisition_time or "0").strip().zfill(4)
+        observed = datetime.strptime(f"{date} {time_text}", "%Y-%m-%d %H%M")
+        return observed.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_firms_csv(csv_text, limit=2000):
+    points = []
+    for row in csv.DictReader(StringIO(csv_text)):
+        if len(points) >= limit:
+            break
+        try:
+            lat = float(row["latitude"])
+            lon = float(row["longitude"])
+            brightness = float(row["bright_ti4"])
+            frp = float(row["frp"])
+            if not (math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180):
+                continue
+            points.append({
+                "lat": lat,
+                "lon": lon,
+                "brightness": brightness,
+                "frp": frp,
+                "confidence": row.get("confidence", "unknown"),
+                "observed_at": _parse_firms_timestamp(row.get("acq_date"), row.get("acq_time")),
+                "satellite": row.get("satellite", "unknown"),
+                "instrument": row.get("instrument", "VIIRS"),
+                "daynight": row.get("daynight", "unknown"),
+            })
+        except (KeyError, TypeError, ValueError):
+            continue
+    return points
+
+
+def _distance_km(first, second):
+    lat1, lon1 = math.radians(first["lat"]), math.radians(first["lon"])
+    lat2, lon2 = math.radians(second["lat"]), math.radians(second["lon"])
+    delta_lat = lat2 - lat1
+    delta_lon = lon2 - lon1
+    haversine = math.sin(delta_lat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(delta_lon / 2) ** 2
+    return 6371 * 2 * math.atan2(math.sqrt(haversine), math.sqrt(1 - haversine))
+
+
+def _timestamp(value):
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")) if value else None
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def _xml_child_text(element, local_name):
+    for child in element:
+        text = (child.text or "").strip()
+        if child.tag.rsplit("}", 1)[-1].lower() == local_name.lower() and text:
+            return text
+    return ""
+
+
+def _fetch_gdacs_events(event_types):
+    if not event_types:
+        return []
+    with _GDACS_CACHE_LOCK:
+        now = time.monotonic()
+        if _GDACS_CACHE["expires_at"] > now:
+            all_events = _GDACS_CACHE["events"]
+        else:
+            try:
+                response = requests.get("https://www.gdacs.org/xml/rss.xml", timeout=8)
+                response.raise_for_status()
+                root = ET.fromstring(response.content)
+                all_events = []
+                for item in root.findall("./channel/item"):
+                    event_type = _xml_child_text(item, "eventtype").upper()
+                    point_text = _xml_child_text(item, "point").split()
+                    if len(point_text) < 2:
+                        continue
+                    try:
+                        lat, lon = float(point_text[0]), float(point_text[1])
+                    except ValueError:
+                        continue
+                    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                        continue
+                    try:
+                        observed_at = parsedate_to_datetime(item.findtext("pubDate", default="")).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+                    except (AttributeError, TypeError, ValueError, OverflowError):
+                        observed_at = None
+                    all_events.append({
+                        "id": _xml_child_text(item, "eventid") or item.findtext("guid"),
+                        "title": item.findtext("title", default="GDACS event"),
+                        "lat": lat,
+                        "lon": lon,
+                        "observed_at": observed_at,
+                        "source": "GDACS",
+                        "sources": ["GDACS"],
+                        "event_type": event_type,
+                        "category": _xml_child_text(item, "eventname") or event_type,
+                        "country": _xml_child_text(item, "country"),
+                        "alert_level": _xml_child_text(item, "alertlevel"),
+                        "link": item.findtext("link"),
+                    })
+                _GDACS_CACHE["events"] = all_events
+                _GDACS_CACHE["expires_at"] = now + 300
+            except Exception as e:
+                print(f"[API ERROR] Fetching GDACS events: {e}")
+                all_events = _GDACS_CACHE["events"]
+
+        return [dict(event) for event in all_events if event["event_type"] in event_types]
+
+
+def _merge_reported_events(primary_events, supplemental_events, max_distance_km=25):
+    merged = list(primary_events)
+    for event in merged:
+        event.setdefault("sources", [event.get("source", "NASA EONET")])
+        event.setdefault("corroborating_reports", [])
+    for supplemental in supplemental_events:
+        event_time = _timestamp(supplemental.get("observed_at"))
+        matches = []
+        if event_time:
+            for primary in merged:
+                primary_time = _timestamp(primary.get("observed_at"))
+                if not primary_time or abs((event_time - primary_time).total_seconds()) > 24 * 60 * 60:
+                    continue
+                distance = _distance_km(primary, supplemental)
+                if distance <= max_distance_km:
+                    matches.append((distance, primary))
+        if matches:
+            _, primary = min(matches, key=lambda match: match[0])
+            if supplemental.get("source") not in primary["sources"]:
+                primary["sources"].append(supplemental.get("source", "Additional source"))
+            primary["corroborating_reports"].append(supplemental)
+        else:
+            event_copy = dict(supplemental)
+            event_copy.setdefault("corroborating_reports", [])
+            merged.append(event_copy)
+    return merged
+
+
+def _merge_gdacs_earthquakes(geojson, gdacs_events):
+    features = list(geojson.get("features") or [])
+    for feature in features:
+        properties = feature.setdefault("properties", {})
+        raw_sources = properties.get("sources")
+        if isinstance(raw_sources, list):
+            properties["sources"] = list(raw_sources)
+            if "USGS" not in properties["sources"]:
+                properties["sources"].append("USGS")
+        else:
+            if raw_sources:
+                properties["usgs_source_codes"] = raw_sources
+            properties["sources"] = ["USGS"]
+
+    for event in gdacs_events:
+        event_time = _timestamp(event.get("observed_at"))
+        if not event_time:
+            continue
+        matches = []
+        for feature in features:
+            coordinates = (feature.get("geometry") or {}).get("coordinates", [])
+            properties = feature.get("properties", {})
+            usgs_time = properties.get("time")
+            if len(coordinates) < 2 or usgs_time is None:
+                continue
+            try:
+                usgs_observed = datetime.fromtimestamp(float(usgs_time) / 1000, timezone.utc)
+            except (TypeError, ValueError, OSError, OverflowError):
+                continue
+            if abs((event_time - usgs_observed).total_seconds()) > 6 * 60 * 60:
+                continue
+            distance = _distance_km(
+                {"lat": coordinates[1], "lon": coordinates[0]}, event
+            )
+            if distance <= 50:
+                matches.append((distance, feature))
+
+        if matches:
+            _, feature = min(matches, key=lambda match: match[0])
+            properties = feature["properties"]
+            if "GDACS" not in properties["sources"]:
+                properties["sources"].append("GDACS")
+            properties["gdacs_alert_level"] = event.get("alert_level")
+            properties["gdacs_event_id"] = event.get("id")
+            continue
+
+        magnitude_match = re.search(r"magnitude\s*([\d.]+)\s*m", event.get("title", ""), re.IGNORECASE)
+        magnitude = float(magnitude_match.group(1)) if magnitude_match else None
+        features.append({
+            "type": "Feature",
+            "id": f"GDACS_{event.get('id') or len(features)}",
+            "geometry": {"type": "Point", "coordinates": [event["lon"], event["lat"], 0]},
+            "properties": {
+                "mag": magnitude,
+                "title": event.get("title", "GDACS earthquake"),
+                "place": event.get("country") or "Location reported by GDACS",
+                "time": int(event_time.timestamp() * 1000),
+                "sources": ["GDACS"],
+                "alert_level": event.get("alert_level"),
+            },
+        })
+
+    geojson["features"] = features
+    if isinstance(geojson.get("metadata"), dict):
+        geojson["metadata"]["count"] = len(features)
+    return geojson
+
+
+def _merge_fire_sources(eonet_fires, firms_points):
+    eonet_cells = defaultdict(list)
+    incident_counts = Counter()
+    for fire in eonet_fires:
+        fire.setdefault("source", "NASA EONET")
+        fire.setdefault("sources", ["NASA EONET"])
+        fire.setdefault("event_type", "reported_incident")
+        fire.setdefault("satellite_observations", [])
+        cell = (math.floor(fire["lat"] / 0.02), math.floor(fire["lon"] / 0.02))
+        eonet_cells[cell].append(fire)
+        incident_counts[(round(fire["lon"]), round(fire["lat"]))] += 1
+
+    unmatched_cells = defaultdict(list)
+    for point in firms_points:
+        observed_at = _timestamp(point.get("observed_at"))
+        point_cell = (math.floor(point["lat"] / 0.02), math.floor(point["lon"] / 0.02))
+        candidates = []
+        if observed_at:
+            for latitude_cell in range(point_cell[0] - 1, point_cell[0] + 2):
+                for longitude_cell in range(point_cell[1] - 1, point_cell[1] + 2):
+                    candidates.extend(eonet_cells.get((latitude_cell, longitude_cell), []))
+
+        matches = []
+        for fire in candidates:
+            event_time = _timestamp(fire.get("observed_at"))
+            if not event_time or abs((observed_at - event_time).total_seconds()) > 24 * 60 * 60:
+                continue
+            distance = _distance_km(fire, point)
+            if distance <= 0.75:
+                matches.append((distance, fire))
+
+        if matches:
+            _, fire = min(matches, key=lambda match: match[0])
+            fire["satellite_observations"].append(point)
+            if "NASA FIRMS" not in fire["sources"]:
+                fire["sources"].append("NASA FIRMS")
+        else:
+            group_key = (
+                math.floor(point["lat"] / 0.01),
+                math.floor(point["lon"] / 0.01),
+                (point.get("observed_at") or "unknown")[:10],
+            )
+            unmatched_cells[group_key].append(point)
+
+    thermal_clusters = []
+    for observations in unmatched_cells.values():
+        count = len(observations)
+        thermal_clusters.append({
+            "title": f"Satellite heat detection cluster ({count})",
+            "lat": sum(point["lat"] for point in observations) / count,
+            "lon": sum(point["lon"] for point in observations) / count,
+            "density_score": count,
+            "source": "NASA FIRMS",
+            "sources": ["NASA FIRMS"],
+            "event_type": "thermal_detection",
+            "observed_at": max((point.get("observed_at") or "" for point in observations), default=None) or None,
+            "detection_count": count,
+            "satellite_observations": observations,
+        })
+
+    for fire in eonet_fires:
+        fire["density_score"] = incident_counts[(round(fire["lon"]), round(fire["lat"]))]
+        fire["detection_count"] = len(fire["satellite_observations"])
+
+    return sorted(
+        eonet_fires + thermal_clusters,
+        key=lambda fire: (fire["event_type"] == "thermal_detection", -fire["density_score"]),
+    )
 
 
 @app.get("/api/satellites")
@@ -147,55 +445,119 @@ def get_active_fires():
     """Core wildfire endpoint with spatial density grouping"""
     url = "https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open"
     try:
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            fires = data.get('events') or []
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            eonet_future = executor.submit(requests.get, url, timeout=10)
+            gdacs_future = executor.submit(_fetch_gdacs_events, {"WF"})
+            firms_future = executor.submit(get_raw_firms)
+
             clean_fires = []
-            for fire in fires:
-                title = fire.get('title', 'Unknown Wildfire')
-                point = _first_geometry_lat_lon(fire.get('geometry'))
-                if point:
-                    lat, lon = point
-                    clean_fires.append({"title": title.replace("Wildfire", "").strip(), "lat": lat, "lon": lon})
-            
-            grid_counter = Counter()
-            for fire in clean_fires:
-                grid_x, grid_y = round(fire['lon'] / 1.0), round(fire['lat'] / 1.0)
-                grid_counter[(grid_x, grid_y)] += 1
-            for fire in clean_fires:
-                grid_x, grid_y = round(fire['lon'] / 1.0), round(fire['lat'] / 1.0)
-                fire['density_score'] = grid_counter[(grid_x, grid_y)]
-            clean_fires.sort(key=lambda x: x['density_score'], reverse=True)
-            return {"status": "success", "total_global": len(clean_fires), "fires": clean_fires}
-        return {"status": "error", "message": "NASA uplink rejected."}
+            eonet_status = "error"
+            try:
+                response = eonet_future.result()
+                if response.status_code == 200:
+                    eonet_status = "success"
+                    for fire in response.json().get("events") or []:
+                        geometry = _latest_geometry(fire.get("geometry"))
+                        if not geometry:
+                            continue
+                        observed_at, (lat, lon) = geometry
+                        clean_fires.append({
+                            "id": fire.get("id"),
+                            "title": (fire.get("title") or "Unknown Wildfire").replace("Wildfire", "").strip(),
+                            "lat": lat,
+                            "lon": lon,
+                            "observed_at": observed_at or None,
+                            "source": "NASA EONET",
+                            "sources": ["NASA EONET"],
+                            "event_type": "reported_incident",
+                        })
+            except Exception as e:
+                print(f"[API ERROR] Fetching EONET fires: {e}")
+
+            gdacs_fires = gdacs_future.result()
+            firms_result = firms_future.result()
+
+        firms_points = firms_result.get("data", []) if firms_result.get("status") == "success" else []
+        if eonet_status != "success" and not gdacs_fires and not firms_points:
+            return {"status": "error", "message": "No wildfire data source is currently available."}
+
+        reported_fires = _merge_reported_events(clean_fires, gdacs_fires, max_distance_km=5)
+        unified_fires = _merge_fire_sources(reported_fires, firms_points)
+        incident_count = sum(fire["event_type"] != "thermal_detection" for fire in unified_fires)
+        thermal_count = sum(fire["event_type"] == "thermal_detection" for fire in unified_fires)
+        matched_firms_count = sum(fire["detection_count"] for fire in unified_fires if fire["event_type"] != "thermal_detection")
+        return {
+            "status": "success",
+            "total_global": len(unified_fires),
+            "incident_count": incident_count,
+            "thermal_cluster_count": thermal_count,
+            "thermal_detection_count": len(firms_points),
+            "matched_thermal_detection_count": matched_firms_count,
+            "source_status": {
+                "NASA EONET": eonet_status,
+                "NASA FIRMS": firms_result.get("status", "error"),
+                "GDACS": "success" if gdacs_fires else "empty_or_unavailable",
+            },
+            "fires": unified_fires,
+        }
     except Exception as e:
         print(f"[API ERROR] Fetching Fires: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/events")
 def get_nasa_events(category: str):
-    """UNIVERSAL ROUTE: Fetches any specified category from NASA EONET"""
+    """Combines NASA EONET events with matching GDACS alerts when available."""
     url = f"https://eonet.gsfc.nasa.gov/api/v3/events?category={category}&status=open"
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            events = data.get('events') or []
-            clean_events = []
-            for event in events:
-                title = event.get('title', 'Unknown Event')
-                point = _first_geometry_lat_lon(event.get('geometry'))
-                if point:
-                    lat, lon = point
-                    clean_events.append({"title": title, "lat": lat, "lon": lon, "category": category})
-            return {"status": "success", "total": len(clean_events), "events": clean_events}
-        elif response.status_code == 503:
-            return {"status": "error", "message": "NASA EONET API 503: Service Unavailable / Overloaded."}
-        return {"status": "error", "message": f"NASA API Error: {response.status_code}"}
-    except Exception as e:
-        print(f"[API ERROR] Fetching NASA Events for {category}: {e}")
-        return {"status": "error", "message": str(e)}
+    gdacs_codes = {
+        "severeStorms": {"TC"},
+        "floods": {"FL"},
+        "wildfires": {"WF"},
+        "volcanoes": {"VO"},
+        "drought": {"DR"},
+    }
+    clean_events = []
+    eonet_status = "error"
+    event_types = gdacs_codes.get(category, set())
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        eonet_future = executor.submit(requests.get, url, timeout=10)
+        gdacs_future = executor.submit(_fetch_gdacs_events, event_types)
+        try:
+            response = eonet_future.result()
+            if response.status_code == 200:
+                eonet_status = "success"
+                for event in response.json().get("events") or []:
+                    geometry = _latest_geometry(event.get("geometry"))
+                    if not geometry:
+                        continue
+                    observed_at, (lat, lon) = geometry
+                    clean_events.append({
+                        "id": event.get("id"),
+                        "title": event.get("title", "Unknown Event"),
+                        "lat": lat,
+                        "lon": lon,
+                        "category": category,
+                        "observed_at": observed_at or None,
+                        "source": "NASA EONET",
+                        "sources": ["NASA EONET"],
+                    })
+        except Exception as e:
+            print(f"[API ERROR] Fetching NASA Events for {category}: {e}")
+        gdacs_events = gdacs_future.result()
+
+    merged_events = _merge_reported_events(clean_events, gdacs_events)
+    for event in merged_events:
+        event.setdefault("category", category)
+    if not merged_events and eonet_status != "success":
+        return {"status": "error", "message": "No event source is currently available."}
+    return {
+        "status": "success",
+        "total": len(merged_events),
+        "events": merged_events,
+        "source_status": {
+            "NASA EONET": eonet_status,
+            "GDACS": "success" if gdacs_events else "empty_or_unavailable",
+        },
+    }
 
 @app.get("/api/ignition_risk")
 def calculate_ignition_risk(lat: float, lon: float):
@@ -291,14 +653,29 @@ def get_biomass_data(lat: float, lon: float):
 
 @app.get("/api/earthquakes")
 def get_earthquakes():
-    """Fetches USGS Real-Time Lithospheric Data (> 4.5 Mag)"""
+    """Combines the USGS earthquake feed with distinct GDACS alerts."""
     url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson"
-    try:
-        res = requests.get(url, timeout=5)
-        return res.json()
-    except Exception as e:
-        print(f"[API ERROR] Fetching Earthquakes: {e}")
-        return {"status": "error", "message": str(e)}
+    geojson = {"type": "FeatureCollection", "features": []}
+    usgs_status = "error"
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        usgs_future = executor.submit(requests.get, url, timeout=5)
+        gdacs_future = executor.submit(_fetch_gdacs_events, {"EQ"})
+        try:
+            response = usgs_future.result()
+            if response.status_code == 200:
+                geojson = response.json()
+                usgs_status = "success"
+        except Exception as e:
+            print(f"[API ERROR] Fetching Earthquakes: {e}")
+        gdacs_events = gdacs_future.result()
+    merged = _merge_gdacs_earthquakes(geojson, gdacs_events)
+    if not merged["features"]:
+        return {"status": "error", "message": "No earthquake source is currently available."}
+    merged["source_status"] = {
+        "USGS": usgs_status,
+        "GDACS": "success" if gdacs_events else "empty_or_unavailable",
+    }
+    return merged
 
 @app.get("/api/volcanoes")
 def get_volcanoes():
@@ -323,20 +700,7 @@ def get_raw_firms():
         if res.status_code != 200:
             return {"status": "error", "message": "FIRMS API rejected connection."}
         
-        csv_reader = csv.DictReader(StringIO(res.text))
-        thermal_points = []
-        for index, row in enumerate(csv_reader):
-            if index >= 2000: break
-            try:
-                thermal_points.append({
-                    "lat": float(row["latitude"]),
-                    "lon": float(row["longitude"]),
-                    "brightness": float(row["bright_ti4"]),
-                    "frp": float(row["frp"]),
-                    "confidence": row["confidence"]
-                })
-            except ValueError:
-                continue
+        thermal_points = _parse_firms_csv(res.text)
         return {"status": "success", "data": thermal_points}
     except Exception as e:
         print(f"[API ERROR] Fetching Raw FIRMS: {e}")

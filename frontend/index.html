@@ -23,6 +23,12 @@
         --neon-amber: #ff9f0a;
         --neon-green: #32d74b; 
         --text-main: #e5e7eb;
+                    <h2>Satellite Status</h2>
+                    <div class="metric-box" style="padding: 10px 15px">
+                      <div id="satellite-container" style="font-family: monospace; font-size: 0.75rem; color:#a1a1aa;">
+                        Establishing EONET uplink...
+                      </div>
+                    </div>
         --border-tech: 1px solid rgba(0, 229, 255, 0.2);
       }
 
@@ -33,7 +39,7 @@
         font-family: 'Roboto', sans-serif;
         background-color: var(--bg-primary);
         color: var(--text-main);
-      }
+                    <div style="font-size: 0.75rem; color: #a1a1aa">SHARE IN HIGH-DENSITY CELLS</div>
 
       /* Fixed Navigation Header with Dropdown Support */
       #top-nav {
@@ -67,6 +73,10 @@
         border-bottom: 1px solid rgba(255,255,255,0.05);
       }
       .dropdown-content label:hover { color: var(--neon-cyan); }
+      .map-style-options { border-top: 1px solid rgba(255,255,255,0.12); padding-top: 8px; }
+      .map-style-options > span { color: #8892b0; font-size: 0.7rem; }
+      .map-style-options label { border: 0; }
+      .map-style-radio { margin: 0 8px 0 0; accent-color: var(--neon-cyan); }
 
       #app-core { position: relative; width: 100%; height: 100%; }
 
@@ -228,7 +238,13 @@
            <label style="color:#bf5af2;"><input type="checkbox" class="checkbox" style="color:#bf5af2;" onchange="toggleSpecificLayer('volcanoes', this.checked)">🌋 Volcanoes</label>
            <label style="color:#0a84ff;"><input type="checkbox" class="checkbox" style="color:#0a84ff;" onchange="toggleSpecificLayer('severeStorms', this.checked)">🌀 Severe Storms</label>
            <label style="color:#00e5ff;"><input type="checkbox" class="checkbox" style="color:#00e5ff;" onchange="toggleSpecificLayer('floods', this.checked)">🌊 Floods</label>
-           <label style="color:#00e5ff;"><input type="checkbox" class="checkbox" style="color:#00e5ff;" onchange="toggleSpecificLayer('firms', this.checked)">🛰️ Raw Satellite Heat</label>
+           <label style="color:#b78200;"><input type="checkbox" class="checkbox" style="color:#b78200;" onchange="toggleSpecificLayer('drought', this.checked)">🌵 Drought alerts</label>
+           <label style="color:#00e5ff;"><input type="checkbox" class="checkbox" style="color:#00e5ff;" onchange="toggleSpecificLayer('firms', this.checked)">🛰️ Raw FIRMS pixels (detail)</label>
+           <div class="map-style-options">
+             <span>BASE MAP</span>
+             <label><input class="map-style-radio" type="radio" name="basemap" value="street" checked onchange="setBasemap('street')">Street</label>
+             <label><input class="map-style-radio" type="radio" name="basemap" value="satellite" onchange="setBasemap('satellite')">Satellite imagery</label>
+           </div>
         </div>
       </div>
       <button class="nav-btn" onclick="switchMode('orbital')" id="btn-orbital">ORBITAL</button>
@@ -242,7 +258,7 @@
 
           <h2>Telemetry</h2>
           <div class="metric-box">
-            <div style="font-size: 0.7rem; opacity: 0.6; letter-spacing: 1px">ACTIVE DETECTIONS</div>
+            <div style="font-size: 0.7rem; opacity: 0.6; letter-spacing: 1px">MAPPED REPORTS & DETECTION CLUSTERS</div>
             <div class="metric-val" id="total-fires">0000</div>
           </div>
 
@@ -293,15 +309,15 @@
                 <h1 style="font-size: 1.8rem; margin: 0; color: #fff; margin-bottom: 20px;">GLOBAL ECO-STATS</h1>
                 <div class="telemetry-grid">
                   <div class="metric-box tele-card-4">
-                    <div style="font-size: 0.75rem; color: #a1a1aa">TOTAL CARBON FLUX (MW)</div>
+                    <div style="font-size: 0.75rem; color: #a1a1aa">NASA FIRMS RADIATIVE POWER (MW)</div>
                     <div class="metric-val" id="kpi-carbon">CALCULATING...</div>
                   </div>
                   <div class="metric-box tele-card-4">
-                    <div style="font-size: 0.75rem; color: #a1a1aa">ACTIVE EMERGENCIES</div>
+                    <div style="font-size: 0.75rem; color: #a1a1aa">REPORTS IN HIGH-DENSITY CELLS</div>
                     <div class="metric-val" id="kpi-critical" style="color: var(--neon-red)">0</div>
                   </div>
                   <div class="metric-box tele-card-4">
-                    <div style="font-size: 0.75rem; color: #a1a1aa">CRITICAL EVENT RATIO</div>
+                    <div style="font-size: 0.75rem; color: #a1a1aa">REPORTS IN HIGH-DENSITY CELLS</div>
                     <div class="metric-val" id="kpi-risk" style="color: var(--neon-amber)">0.0%</div>
                   </div>
                   <div class="metric-box tele-card-6">
@@ -321,18 +337,28 @@
                     <div class="chart-wrapper"><canvas id="carbonChart"></canvas></div>
                   </div>
                   <div class="metric-box tele-card-full">
-                    <h2>Top 10 Critical Outbreaks</h2>
+                    <h2>Top 10 Reported Fire Areas</h2>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left;" id="data-matrix-table">
                       <thead>
                         <tr style="border-bottom: 2px solid rgba(0, 229, 255, 0.2); color: var(--neon-cyan);">
                           <th style="padding: 10px 5px">LOCATION / EVENT</th>
                           <th>COORDINATES</th>
-                          <th>SEVERITY</th>
+                          <th>REPORT DENSITY</th>
                           <th>STATUS</th>
                         </tr>
                       </thead>
                       <tbody style="color: #a1a1aa" id="table-body-matrix"></tbody>
                     </table>
+                  </div>
+                  <div class="metric-box tele-card-full">
+                    <h2 style="margin-top:0">How to read these numbers</h2>
+                    <p style="font-family:monospace; color:#a1a1aa; line-height:1.6;">
+                      EONET and GDACS entries are reported events. The map's density score counts reports rounded into roughly one-degree areas; it is not a measure of fire size or severity. NASA FIRMS records are satellite heat detections, not confirmed incidents, and are shown separately unless they match a reported event within about 750 metres and 24 hours.
+                      <br><br>
+                      The project hazard index combines local wind, reported-event density and a terrain multiplier. Ignition risk combines current weather and modelled soil moisture. Spread and water figures use simple project heuristics. None of these scores has been validated as an operational fire forecast, damage estimate or evacuation recommendation.
+                      <br><br>
+                      FIRMS radiative power is summed from available satellite detections and is not total carbon emissions.
+                    </p>
                   </div>
                 </div>
             </div>
@@ -417,8 +443,10 @@
           volcanoes: [],
           severeStorms: [],
           floods: [],
+          drought: [],
           firms: []
       };
+      window.showRawFirms = false;
 
       window.layerGroups = {
           wildfires: L.layerGroup(),
@@ -426,11 +454,21 @@
           volcanoes: L.layerGroup(),
           severeStorms: L.layerGroup(),
           floods: L.layerGroup(),
+          drought: L.layerGroup(),
           firms: L.layerGroup()
       };
 
       window.liveSatellites = {}; 
       window.globalCO2Data = []; 
+      window.layerRequestIds = {
+        wildfires: 0,
+        earthquakes: 0,
+        volcanoes: 0,
+        severeStorms: 0,
+        floods: 0,
+        drought: 0,
+        firms: 0,
+      };
 
       const bounds = [[-90, -180], [90, 180]];
       const map = L.map("map", { preferCanvas: true, maxBounds: bounds, maxBoundsViscosity: 1.0, minZoom: 2.5 }).setView([20, 0], 2.5);
@@ -448,11 +486,133 @@
 
       let satelliteLayerGroup = L.layerGroup().addTo(map);
 
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
-        maxZoom: 19,
-        noWrap: true,
-        attribution: 'Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, &copy; OpenStreetMap contributors, and the GIS User Community'
-      }).addTo(map);
+      const basemapLayers = {
+        street: {
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+          attribution: 'Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, &copy; OpenStreetMap contributors, and the GIS User Community'
+        },
+        satellite: {
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          attribution: 'Imagery &copy; <a href="https://www.esri.com/en-us/legal/terms/full-master-agreement" target="_blank" rel="noopener">Esri</a>, Maxar, Earthstar Geographics, and the GIS User Community'
+        }
+      };
+      let activeBasemap = null;
+      window.setBasemap = function (style, persist = true) {
+        const selectedStyle = basemapLayers[style] ? style : "street";
+        if (activeBasemap) map.removeLayer(activeBasemap);
+        activeBasemap = L.tileLayer(basemapLayers[selectedStyle].url, {
+          maxZoom: 19,
+          noWrap: true,
+          attribution: basemapLayers[selectedStyle].attribution
+        }).addTo(map);
+        document.querySelectorAll('input[name="basemap"]').forEach((input) => {
+          input.checked = input.value === selectedStyle;
+        });
+        if (persist) {
+          try { localStorage.setItem("climateShieldBasemap", selectedStyle); } catch (error) {}
+        }
+      };
+      let initialBasemap = "street";
+      try { initialBasemap = localStorage.getItem("climateShieldBasemap") || "street"; } catch (error) {}
+      window.setBasemap(initialBasemap, false);
+
+      let renderedFireMarkers = [];
+      let fireRenderTimer = null;
+      let isRebuildingFireLayer = false;
+
+      function createFireMarker(fire) {
+        const isSatelliteDetection = fire.event_type === "thermal_detection";
+        const markerColor = isSatelliteDetection
+          ? "#007f98"
+          : fire.density_score >= 8 ? "#ff453a" : fire.density_score >= 3 ? "#ff9f0a" : "#32d74b";
+        const marker = L.circleMarker([fire.lat, fire.lon], {
+          radius: isSatelliteDetection ? 6 : fire.density_score >= 8 ? 9 : fire.density_score >= 3 ? 7 : 6,
+          color: "#0a0d14",
+          weight: 1.5,
+          fillColor: markerColor,
+          fillOpacity: 0.95,
+        });
+        fire.markerRef = marker;
+        marker.on("click", function (event) {
+          L.DomEvent.stopPropagation(event);
+          inspectFire(fire);
+        });
+        if (fire.popupHtml) marker.bindPopup(fire.popupHtml);
+        marker.on("popupclose", () => {
+          if (!isRebuildingFireLayer) fire.popupOpen = false;
+        });
+        return marker;
+      }
+
+      function renderWildfireLayer() {
+        const fires = window.globalLayerData.wildfires.filter((fire) => !window.showRawFirms || fire.event_type !== "thermal_detection");
+        const layer = window.layerGroups.wildfires;
+        if (!fires.length || !layer) return;
+
+        renderedFireMarkers.forEach((fire) => { fire.markerRef = null; });
+        renderedFireMarkers = [];
+        isRebuildingFireLayer = true;
+        layer.clearLayers();
+
+        const zoom = map.getZoom ? map.getZoom() : 2.5;
+        if (zoom < 5.5) {
+          const cellSize = zoom < 3.5 ? 6 : 2;
+          const clusters = new Map();
+          fires.forEach((fire) => {
+            const key = `${Math.floor(fire.lat / cellSize)}:${Math.floor(fire.lon / cellSize)}`;
+            if (!clusters.has(key)) clusters.set(key, { lat: 0, lon: 0, records: 0, incidents: 0, detections: 0 });
+            const cluster = clusters.get(key);
+            cluster.lat += fire.lat;
+            cluster.lon += fire.lon;
+            cluster.records += 1;
+            if (fire.event_type === "thermal_detection") cluster.detections += fire.detection_count || 1;
+            else cluster.incidents += 1;
+          });
+
+          clusters.forEach((cluster) => {
+            const recordCount = cluster.incidents + cluster.detections;
+            const center = [cluster.lat / cluster.records, cluster.lon / cluster.records];
+            const marker = L.circleMarker(center, {
+              radius: Math.min(18, 6 + Math.log2(recordCount) * 2),
+              color: "#0a0d14",
+              weight: 2,
+              fillColor: cluster.detections && !cluster.incidents ? "#007f98" : "#ff9f0a",
+              fillOpacity: 0.85,
+            });
+            marker.bindPopup(`<b>Grouped map reports</b><br>${cluster.incidents} EONET incidents<br>${cluster.detections} FIRMS thermal detections<br>Zoom in to inspect individual reports.`);
+            marker.on("click", function (event) {
+              L.DomEvent.stopPropagation(event);
+              map.setView(center, Math.min(19, Math.max(6, zoom + 2)));
+            });
+            layer.addLayer(marker);
+          });
+          const selectedFire = fires.find((fire) => fire.popupOpen);
+          if (selectedFire) {
+            const marker = createFireMarker(selectedFire);
+            renderedFireMarkers.push(selectedFire);
+            layer.addLayer(marker);
+            marker.openPopup();
+          }
+          isRebuildingFireLayer = false;
+          return;
+        }
+
+        const bounds = map.getBounds ? map.getBounds().pad(0.15) : null;
+        fires.forEach((fire) => {
+          if (bounds && !bounds.contains([fire.lat, fire.lon])) return;
+          const marker = createFireMarker(fire);
+          renderedFireMarkers.push(fire);
+          layer.addLayer(marker);
+          if (fire.popupOpen) marker.openPopup();
+        });
+        isRebuildingFireLayer = false;
+      }
+
+      function scheduleWildfireRender() {
+        clearTimeout(fireRenderTimer);
+        fireRenderTimer = setTimeout(renderWildfireLayer, 100);
+      }
+      map.on("zoomend moveend", scheduleWildfireRender);
 
       async function fetchJSON(url) {
         const response = await fetch(url);
@@ -590,8 +750,17 @@
       // SPECIFIC LAYER ROUTING (Protects Core Fire Data & Handles 503s)
       // ==========================================================
       window.toggleSpecificLayer = function(layerName, isActive) {
+          const layer = window.layerGroups[layerName];
+          if (!layer) return;
+
           if (!isActive) {
-              map.removeLayer(window.layerGroups[layerName]);
+            window.layerRequestIds[layerName]++;
+            map.removeLayer(layer);
+            layer.clearLayers();
+              if (layerName === 'firms') {
+                window.showRawFirms = false;
+                renderWildfireLayer();
+              }
               if (layerName !== 'wildfires') {
                   window.globalLayerData[layerName] = [];
               }
@@ -599,9 +768,12 @@
               return;
           }
 
-          window.layerGroups[layerName].addTo(map);
+              layer.clearLayers();
+              layer.addTo(map);
 
           if (layerName === 'wildfires') {
+                window.layerRequestIds.wildfires++;
+                renderWildfireLayer();
               if (myGlobe) updateGlobeData();
           } else if (layerName === 'earthquakes') {
               window.toggleLithosphere(isActive);
@@ -611,16 +783,21 @@
               window.toggleEonetCategory('severeStorms', '#0a84ff', '🌀 SEVERE STORM');
           } else if (layerName === 'floods') {
               window.toggleEonetCategory('floods', '#00e5ff', '🌊 FLOOD ZONE');
+            } else if (layerName === 'drought') {
+              window.toggleEonetCategory('drought', '#b78200', '🌵 DROUGHT ALERT');
           } else if (layerName === 'firms') {
               window.toggleRawFIRMS(isActive);
           }
       }
 
       window.toggleEonetCategory = async function(category, color, label) {
+          const requestId = ++window.layerRequestIds[category];
+          window.layerGroups[category].clearLayers();
           logAIStream(`[UPLINK] Querying NASA EONET for ${category.toUpperCase()}...`);
           try {
               const res = await fetch(`${backendUrl}/api/events?category=${category}`);
               const data = await res.json();
+            if (requestId !== window.layerRequestIds[category]) return;
               
               if (data.status === "success") {
                   window.globalLayerData[category] = data.events;
@@ -628,7 +805,7 @@
 
                   data.events.forEach(event => {
                       const marker = L.circle([event.lat, event.lon], { color: color, weight: 2, fillColor: color, fillOpacity: 0.2, radius: 80000, dashArray: '5, 5' });
-                      marker.bindPopup(`<b style="color:${color}; text-transform:uppercase;">${label} DETECTED</b><br>${event.title}
+                      marker.bindPopup(`<b style="color:${color}; text-transform:uppercase;">${label} DETECTED</b><br>${event.title}<br><b>Sources:</b> ${(event.sources || [event.source || "NASA EONET"]).join(", ")}${event.alert_level ? `<br><b>GDACS alert:</b> ${event.alert_level}` : ""}${event.observed_at ? `<br><b>Updated:</b> ${event.observed_at}` : ""}
                           <br><button onclick="event.stopPropagation(); window.launchRecon(${event.lat}, ${event.lon})" style="width: 100%; padding: 8px; margin-top: 10px; background: rgba(0, 229, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: monospace; font-weight: bold; cursor: pointer; border-radius:3px;">LAUNCH ORBITAL RECON</button>
                       `);
                       marker.on("click", function (e) { L.DomEvent.stopPropagation(e); });
@@ -646,12 +823,15 @@
       };
 
       window.toggleLithosphere = async function () {
+        const requestId = ++window.layerRequestIds.earthquakes;
+        window.layerGroups.earthquakes.clearLayers();
         logAIStream(`[UPLINK] Querying USGS Real-Time Seismic Database...`);
         try {
           const res = await fetch(`${backendUrl}/api/earthquakes`);
           const geojson = await res.json();
+          if (requestId !== window.layerRequestIds.earthquakes) return;
           document.getElementById('geo-json-log').innerText = JSON.stringify(geojson, null, 2);
-          analyticsWorker.postMessage({ action: "parse_earthquakes", rawData: geojson });
+          analyticsWorker.postMessage({ action: "parse_earthquakes", rawData: geojson, requestId });
         } catch (err) {
           logAIStream(`<span style="color:var(--neon-red)">[ERROR] Failed fetching Lithosphere.</span>`);
           console.error("Earthquake Error: ", err);
@@ -659,9 +839,12 @@
       };
 
       window.toggleVolcanoes = async function () {
+        const requestId = ++window.layerRequestIds.volcanoes;
+        window.layerGroups.volcanoes.clearLayers();
         logAIStream(`[UPLINK] Querying Global Volcanic Ash Advisory Centers (VAAC)...`);
         try {
           const data = await fetchJSON(`${backendUrl}/api/events?category=volcanoes`);
+          if (requestId !== window.layerRequestIds.volcanoes) return;
           if (!data || !data.events) return;
           document.getElementById('geo-json-log').innerText = JSON.stringify(data, null, 2);
 
@@ -690,16 +873,23 @@
       };
 
       window.toggleRawFIRMS = async function () {
+        const requestId = ++window.layerRequestIds.firms;
+        window.layerGroups.firms.clearLayers();
         logAIStream(`[UPLINK] Establishing direct bypass to NASA MODAPS. Ingesting raw spectral arrays...`);
         try {
           const res = await fetch(`${backendUrl}/api/raw_firms`);
           const data = await res.json();
+          if (requestId !== window.layerRequestIds.firms) return;
           if (data.status === "error") {
+             window.showRawFirms = false;
+             renderWildfireLayer();
              logAIStream(`<span style="color:var(--neon-red)">[ERROR] FIRMS Access Denied: ${data.message}</span>`);
              return;
           }
+           window.showRawFirms = true;
+           renderWildfireLayer();
           document.getElementById('geo-json-log').innerText = JSON.stringify(data, null, 2);
-          analyticsWorker.postMessage({ action: "parse_firms", rawData: data });
+          analyticsWorker.postMessage({ action: "parse_firms", rawData: data, requestId });
         } catch (err) {
           logAIStream(`<span style="color:var(--neon-red)">[ERROR] Failed fetching FIRMS.</span>`);
           console.error("FIRMS Error: ", err);
@@ -768,25 +958,58 @@
       // FIRE INSPECTION & TACTICAL ROUTING
       // ==========================================================
       async function inspectFire(fire) {
+        if (fire.event_type === "thermal_detection") {
+          map.setView([fire.lat, fire.lon], 9);
+          window.layerGroups.wildfires.addTo(map);
+          if (!fire.markerRef || !window.layerGroups.wildfires.hasLayer(fire.markerRef)) {
+            fire.markerRef = createFireMarker(fire);
+            window.layerGroups.wildfires.addLayer(fire.markerRef);
+          }
+          const latestDetection = fire.satellite_observations?.[0];
+          fire.popupHtml = `
+            <div style="font-family:monospace; min-width:260px; line-height:1.5;">
+              <b style="color:#00e5ff">SATELLITE THERMAL DETECTION</b><br>
+              <b>Source:</b> NASA FIRMS / ${latestDetection?.satellite || "VIIRS"}<br>
+              <b>Nearby detections:</b> ${fire.detection_count || 1}<br>
+              <b>Latest observation:</b> ${fire.observed_at || "Time unavailable"}<br>
+              <b>Confidence:</b> ${latestDetection?.confidence || "Not reported"}<br>
+              <b>Fire radiative power:</b> ${latestDetection?.frp ?? "Not reported"} MW<br><br>
+              This is a satellite heat detection, not a confirmed incident.
+              <button onclick="event.stopPropagation(); window.launchRecon(${fire.lat}, ${fire.lon})" style="width:100%;padding:8px;margin-top:10px;background:rgba(0,229,255,.1);border:1px solid var(--neon-cyan);color:var(--neon-cyan);font-family:monospace;font-weight:bold;cursor:pointer;">OPEN SATELLITE RECON</button>
+            </div>
+          `;
+          fire.popupOpen = true;
+          fire.markerRef.bindPopup(fire.popupHtml).openPopup();
+          logAIStream(`Opened FIRMS thermal cluster with ${fire.detection_count || 1} satellite detection(s).`);
+          return;
+        }
+
         const startTime = performance.now();
         map.setView([parseFloat(fire.lat), parseFloat(fire.lon)], 9);
+        window.layerGroups.wildfires.addTo(map);
+        if (!fire.markerRef || !window.layerGroups.wildfires.hasLayer(fire.markerRef)) {
+          fire.markerRef = createFireMarker(fire);
+          renderedFireMarkers.push(fire);
+          window.layerGroups.wildfires.addLayer(fire.markerRef);
+        }
 
-        fire.markerRef.bindPopup(`<b>${fire.title}</b><br><span style='color:var(--neon-cyan);'>Querying multiple orbital APIs...</span>`, { offset: [0, -10] }).openPopup();
+        fire.popupHtml = `<b>${fire.title}</b><br><span style='color:var(--neon-cyan);'>Querying multiple orbital APIs...</span>`;
+        fire.popupOpen = true;
+        fire.markerRef.bindPopup(fire.popupHtml, { offset: [0, -10] }).openPopup();
 
         if (currentWindLine) map.removeLayer(currentWindLine);
         logAIStream(`Initiated multipoint sensor sweep for: ${fire.lat.toFixed(2)}, ${fire.lon.toFixed(2)}`);
 
         try {
-          const [resWind, resTerrain, resAQ] = await Promise.all([
+          const [resWind, resAQ] = await Promise.all([
             fetch(`${backendUrl}/api/wind?lat=${fire.lat}&lon=${fire.lon}`),
-            fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=0`),
             fetch(`${backendUrl}/api/air_quality?lat=${fire.lat}&lon=${fire.lon}`),
           ]);
 
           const wind = await resWind.json();
-          const resTerrainReal = await fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=${wind.direction}`);
-          const terrain = await resTerrainReal.json();
           const aq = await resAQ.json();
+          const terrainResponse = await fetch(`${backendUrl}/api/analyze_terrain?lat=${fire.lat}&lon=${fire.lon}&wind_dir=${wind.direction}`);
+          const terrain = await terrainResponse.json();
 
           fire.liveWind = wind;
           fire.liveTerrain = terrain;
@@ -803,15 +1026,18 @@
           const projectedSpread = (wind.speed * 0.22 * 24 * terrain.spread_multiplier).toFixed(2);
           let aqColor = aq.pm2_5 > 50 ? "#ff453a" : aq.pm2_5 > 15 ? "#ff9f0a" : "#32d74b";
 
-          fire.markerRef.setPopupContent(`
+              fire.popupHtml = `
             <div style="font-family: monospace; min-width: 290px; font-size: 0.8rem; line-height: 1.5;">
                 <b style="color: ${threatColor}; font-size: 0.95rem;">${fire.title}</b><br><br>
+                <span style="color:#a1a1aa;">REPORTED BY:</span> ${(fire.sources || [fire.source || "NASA EONET"]).join(", ")}<br>
+                ${fire.detection_count ? `<span style="color:#a1a1aa;">NEARBY FIRMS HEAT PIXELS:</span> ${fire.detection_count}<br>` : ""}
                 <span style="color:#a1a1aa;">WIND:</span> ${speedKmh} km/h @ ${wind.direction}°<br>
                 <span style="color:#a1a1aa;">ELEVATION:</span> ${terrain.elevation_meters} m<br>
                 <span style="color:#a1a1aa;">MAP DATA:</span> <b style="color:${terrain.spread_multiplier > 1.2 ? "#ff453a" : "#00e5ff"}">${terrain.terrain_status}</b><br>
                 <span style="color:#a1a1aa;">AIR QUALITY (PM2.5):</span> <b style="color:${aqColor};">${aq.pm2_5} µg/m³</b><br>
-                <span style="color:#a1a1aa;">24H SPREAD FORECAST:</span> ~${projectedSpread} km linear spread<br>
-                <span style="color:#a1a1aa;">HAZARD SCORE:</span> <b style="color:${threatColor};">${hazardIndex} / 100</b>
+                <span style="color:#a1a1aa;">EXPERIMENTAL 24H SPREAD ESTIMATE:</span> ~${projectedSpread} km linear spread<br>
+                <span style="color:#a1a1aa;">PROJECT HAZARD INDEX:</span> <b style="color:${threatColor};">${hazardIndex} / 100</b><br>
+                <small style="color:#a1a1aa;">Experimental estimate, not an official fire forecast.</small>
                 
                 <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
                     <button onclick="event.stopPropagation(); window.calculateSuppressionMetrics(${fire.lat}, ${fire.lon})" style="width: 100%; padding: 8px; background: rgba(0, 229, 255, 0.1); border: 1px solid #00e5ff; color: #00e5ff; font-family: monospace; font-weight: bold; cursor: pointer; border-radius:3px; margin-bottom: 5px;">
@@ -820,12 +1046,17 @@
                     <button onclick="switchMode('telemetry'); switchTeleTab('atm-plumes');" style="width: 100%; padding: 8px; background: rgba(255, 159, 10, 0.1); border: 1px solid #ff9f0a; color: #ff9f0a; font-family: monospace; font-weight: bold; cursor: pointer; border-radius:3px; margin-bottom: 5px;">
                         VIEW ATMOSPHERIC INVERSION
                     </button>
+                    <button onclick="event.stopPropagation(); window.showEvacuationRoute(${fire.lat}, ${fire.lon}, ${wind.direction})" style="width: 100%; padding: 8px; background: rgba(50, 215, 75, 0.1); border: 1px solid var(--neon-green); color: var(--neon-green); font-family: monospace; font-weight: bold; cursor: pointer; border-radius:3px; margin-bottom: 5px;">
+                      SHOW EXPERIMENTAL ROUTE PREVIEW
+                    </button>
                     <button onclick="event.stopPropagation(); window.launchRecon(${fire.lat}, ${fire.lon})" style="width: 100%; padding: 8px; background: rgba(50, 215, 75, 0.1); border: 1px solid var(--neon-green); color: var(--neon-green); font-family: monospace; font-weight: bold; cursor: pointer; border-radius:3px;">
                         LAUNCH ORBITAL RECON (LIVE FEEDS)
                     </button>
                 </div>
             </div>
-          `);
+          `;
+          fire.popupOpen = true;
+          fire.markerRef.bindPopup(fire.popupHtml, { offset: [0, -10] }).openPopup();
 
           const latOffset = Math.cos((wind.direction * Math.PI) / 180) * (wind.speed / 5);
           const lonOffset = Math.sin((wind.direction * Math.PI) / 180) * (wind.speed / 5);
@@ -833,7 +1064,6 @@
           currentWindLine = L.polyline([[fire.lat, fire.lon], [fire.lat + latOffset, fire.lon + lonOffset]], { color: threatColor, weight: 4, opacity: 0.9, dashArray: "5, 5" }).addTo(map);
 
           drawToxicPlume(fire.lat, fire.lon, wind.speed * 3.6, wind.direction, aq.pm2_5);
-          calculateEvacuationRoute(fire.lat, fire.lon, wind.direction);
         } catch (err) {
           logAIStream(`<span style="color:var(--neon-red)">ERROR: Packet loss on coordinates ${fire.lat.toFixed(2)}</span>`);
           console.error("Inspect Fire Error: ", err);
@@ -846,10 +1076,10 @@
 
         const windKmH = fire.liveWind.speed * 3.6;
         const elevationM = fire.liveTerrain.elevation_meters;
-        const estAreaHectares = (fire.density_score * 12.5).toFixed(1);
+        const reportDensityProxy = Math.max(1, fire.density_score || 1);
         const fireLineIntensity = Math.round(fire.density_score * 350 * (1 + windKmH / 15));
         const flameLengthMeters = (0.045 * Math.sqrt(fireLineIntensity)).toFixed(1);
-        const waterNeededLiters = Math.round(estAreaHectares * 10000 * (flameLengthMeters * 1.5));
+        const waterNeededLiters = Math.round(reportDensityProxy * 12.5 * 10000 * (Number(flameLengthMeters) * 1.5));
 
         let difficultyRating = "LOW (HAND LINES)";
         let diffColor = "#32d74b";
@@ -858,42 +1088,55 @@
 
         fire.markerRef.setPopupContent(`
             <div style="font-family: monospace; min-width: 320px; font-size: 0.8rem; line-height: 1.6; color: #fff;">
-                <b style="color: #00e5ff; font-size: 0.95rem; display: block; margin-bottom: 4px;">Fire Suppression Report</b>
-                <span style="color:#a1a1aa; font-size:0.7rem; display:block; margin-bottom:8px;">Derived from real-time meteorological & thermal data</span>
+                <b style="color: #00e5ff; font-size: 0.95rem; display: block; margin-bottom: 4px;">Illustrative Fire Resource Estimate</b>
+                <span style="color:#a1a1aa; font-size:0.7rem; display:block; margin-bottom:8px;">Experimental project heuristic, not operational guidance</span>
                 
                 <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px;">
-                    <b>Active Fire Area:</b> ~${estAreaHectares} Hectares<br>
-                    <b>Fire Intensity:</b> ${fireLineIntensity.toLocaleString()} kW/m<br>
-                    <b>Est. Flame Height:</b> ${flameLengthMeters} meters
+                  <b>Local report-cluster proxy:</b> ${reportDensityProxy}<br>
+                  <b>Heuristic fireline intensity:</b> ${fireLineIntensity.toLocaleString()} kW/m<br>
+                  <b>Heuristic flame length:</b> ${flameLengthMeters} meters
                 </div>
 
                 <div style="background: rgba(0, 229, 255, 0.05); padding: 8px; border-radius: 4px; border: 1px solid rgba(0, 229, 255, 0.2); margin-bottom: 8px;">
-                    <b>Water Needed to Extinguish:</b><br>
+                  <b>Illustrative water estimate from report-density proxy (not a recommendation):</b><br>
                     <span style="font-size: 1rem; color: #00e5ff; font-weight: bold;">${waterNeededLiters.toLocaleString()} Liters</span>
                 </div>
 
                 <div style="font-size: 0.75rem; padding: 4px 0;">
-                    <b>Control Strategy:</b> <b style="color: ${diffColor};">${difficultyRating}</b><br>
+                    <b>Heuristic severity band:</b> <b style="color: ${diffColor};">${difficultyRating}</b> (not response guidance)<br>
                     <b>Elevation:</b> ${elevationM}m Above Sea Level
                 </div>
+                <button onclick="event.stopPropagation(); window.restoreFireDetails(${fire.lat}, ${fire.lon})" style="width:100%;padding:8px;margin-top:10px;background:rgba(0,229,255,.1);border:1px solid #00e5ff;color:#00e5ff;font-family:monospace;font-weight:bold;cursor:pointer;">BACK TO FIRE DETAILS</button>
             </div>
         `);
       };
 
-      async function calculateEvacuationRoute(lat, lon, windDir) {
+      window.restoreFireDetails = function(targetLat, targetLon) {
+        const fire = window.globalLayerData.wildfires.find((item) => item.lat === targetLat && item.lon === targetLon);
+        if (fire?.markerRef && fire.popupHtml) {
+          fire.popupOpen = true;
+          fire.markerRef.bindPopup(fire.popupHtml, { offset: [0, -10] }).openPopup();
+        }
+      };
+
+      window.showEvacuationRoute = async function(lat, lon, windDir) {
         if (currentEvacRoute) map.removeLayer(currentEvacRoute);
-        const safeAngle = (windDir + 180) % 360;
-        const safeLat = lat + Math.cos((safeAngle * Math.PI) / 180) * 0.15;
-        const safeLon = lon + Math.sin((safeAngle * Math.PI) / 180) * 0.15;
-        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${lon},${lat};${safeLon},${safeLat}?geometries=geojson`;
+        const upwindAngle = windDir % 360;
+        const destinationLat = lat + Math.cos((upwindAngle * Math.PI) / 180) * 0.15;
+        const destinationLon = lon + Math.sin((upwindAngle * Math.PI) / 180) * 0.15;
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${lon},${lat};${destinationLon},${destinationLat}?geometries=geojson`;
         try {
           const res = await fetch(osrmUrl);
           const data = await res.json();
           if (data.routes && data.routes.length > 0) {
             currentEvacRoute = L.geoJSON(data.routes[0].geometry, { style: { color: "#32d74b", weight: 5, opacity: 0.8, dashArray: "10, 10" } }).addTo(map);
-            currentEvacRoute.bindPopup(`<b>✅ SECURE EVACUATION CORRIDOR</b><br>Est. Distance: ${(data.routes[0].distance / 1000).toFixed(1)} km`).openPopup();
+            currentEvacRoute.bindPopup(`<b>Experimental wind-relative route preview</b><br>Approx. distance: ${(data.routes[0].distance / 1000).toFixed(1)} km<br><small>Not safety or evacuation guidance.</small>`);
+            logAIStream(`Experimental route preview drawn (${(data.routes[0].distance / 1000).toFixed(1)} km). This is not evacuation guidance.`);
+          } else {
+            logAIStream(`<span style="color:var(--neon-amber)">No drivable route was found near this location.</span>`);
           }
         } catch (error) {
+            logAIStream(`<span style="color:var(--neon-amber)">Route preview is unavailable right now.</span>`);
             console.error("Evacuation Route Error:", error);
         }
       }
@@ -919,7 +1162,9 @@
         const container = document.getElementById("threat-matrix");
         if (reset) container.innerHTML = "";
 
-        const sortedData = [...window.globalLayerData.wildfires].sort((a, b) => currentSortMode === "desc" ? b.density_score - a.density_score : a.density_score - b.density_score);
+        const sortedData = window.globalLayerData.wildfires
+          .filter((fire) => fire.event_type !== "thermal_detection")
+          .sort((a, b) => currentSortMode === "desc" ? b.density_score - a.density_score : a.density_score - b.density_score);
         const toRender = sortedData.slice(container.children.length, displayedFiresCount);
 
         toRender.forEach((fire) => {
@@ -971,44 +1216,44 @@
               satContainer.innerHTML = `<div class="satellite-row"><span style="color:#e5e7eb;">NASA EONET</span><span style="color:var(--neon-red)">OFFLINE</span></div>`;
           }
 
+          Object.entries(data.source_status || {}).forEach(([source, status]) => {
+            const isOnline = status === "success";
+            const statusLabel = status === "empty_or_unavailable" ? "NO CURRENT DATA" : isOnline ? "ONLINE" : "UNAVAILABLE";
+            satContainer.innerHTML += `<div class="satellite-row"><span style="color:#e5e7eb;">${source}</span><span style="color:${isOnline ? "var(--neon-green)" : "var(--neon-amber)"}">${statusLabel}</span></div>`;
+          });
+
           if (data.status === "success") {
             document.getElementById("total-fires").innerText = data.total_global.toLocaleString();
             let highRiskCount = 0;
             const tableBody = document.getElementById("table-body-matrix");
             tableBody.innerHTML = "";
 
-            window.globalLayerData.wildfires = data.fires.map((fire, index) => {
-              if (fire.density_score >= 8) highRiskCount++;
-              let markerColor = fire.density_score >= 8 ? "#ff453a" : fire.density_score >= 3 ? "#ff9f0a" : "#32d74b";
+            window.globalLayerData.wildfires = data.fires.map((fire) => ({ ...fire, markerRef: null }));
+            const incidents = window.globalLayerData.wildfires.filter((fire) => fire.event_type !== "thermal_detection");
+            incidents.forEach((fire) => { if (fire.density_score >= 8) highRiskCount++; });
 
-              const marker = L.circleMarker([fire.lat, fire.lon], {
-                radius: fire.density_score >= 8 ? 9 : fire.density_score >= 3 ? 7 : 6,
-                color: "#0a0d14", weight: 1.5, fillColor: markerColor, fillOpacity: 0.95,
-              });
-
-              fire.markerRef = marker;
-              marker.on("click", function (e) { L.DomEvent.stopPropagation(e); inspectFire(fire); });
-              window.layerGroups.wildfires.addLayer(marker);
-
-              if (index < 10) {
-                const row = document.createElement("tr");
-                row.style.borderBottom = "1px solid rgba(255,255,255,0.03)";
-                let flagColor = fire.density_score >= 8 ? "var(--neon-red)" : fire.density_score >= 3 ? "var(--neon-amber)" : "var(--neon-green)";
-                let flagText = fire.density_score >= 8 ? "CRITICAL OUTBREAK" : fire.density_score >= 3 ? "ELEVATED THREAT" : "MONITORED";
-                row.innerHTML = `<td style="padding: 10px 5px; color:#fff; font-weight:bold;">${fire.title}</td><td>${fire.lat.toFixed(2)}, ${fire.lon.toFixed(2)}</td><td style="color:var(--neon-cyan); font-weight:bold;">Tier ${fire.density_score}</td><td style="color:${flagColor}; font-weight:bold;">${flagText}</td>`;
-                tableBody.appendChild(row);
-              }
-              return fire;
+            incidents.slice(0, 10).forEach((fire) => {
+              const row = document.createElement("tr");
+              row.style.borderBottom = "1px solid rgba(255,255,255,0.03)";
+              const flagColor = fire.density_score >= 8 ? "var(--neon-red)" : fire.density_score >= 3 ? "var(--neon-amber)" : "var(--neon-green)";
+              const flagText = fire.density_score >= 8 ? "HIGH REPORT DENSITY" : fire.density_score >= 3 ? "GROUPED REPORTS" : "SINGLE / LOW DENSITY";
+              row.innerHTML = `<td style="padding: 10px 5px; color:#fff; font-weight:bold;">${fire.title}</td><td>${fire.lat.toFixed(2)}, ${fire.lon.toFixed(2)}</td><td style="color:var(--neon-cyan); font-weight:bold;">${fire.density_score}</td><td style="color:${flagColor}; font-weight:bold;">${flagText}</td>`;
+              tableBody.appendChild(row);
             });
 
             renderThreatMatrix(true);
+            renderWildfireLayer();
             document.getElementById("kpi-critical").innerText = highRiskCount;
-            document.getElementById("kpi-risk").innerText = (data.total_global ? (highRiskCount / data.total_global) * 100 : 0).toFixed(1) + "%";
+            document.getElementById("kpi-risk").innerText = (incidents.length ? (highRiskCount / incidents.length) * 100 : 0).toFixed(1) + "%";
             
-            let totalCarbonVal = window.globalLayerData.wildfires.reduce((acc, curr) => acc + (curr.density_score * 12.5), 0);
-            document.getElementById("kpi-carbon").innerText = totalCarbonVal.toLocaleString() + " MW";
+            const totalFirmsPower = window.globalLayerData.wildfires.reduce((total, fire) => {
+              return total + (fire.satellite_observations || []).reduce((sum, detection) => sum + (Number(detection.frp) || 0), 0);
+            }, 0);
+            document.getElementById("kpi-carbon").innerText = totalFirmsPower
+              ? `${totalFirmsPower.toLocaleString(undefined, { maximumFractionDigits: 1 })} MW`
+              : "NO FIRMS DATA";
 
-            logAIStream(`Uplink processed ${data.total_global} active wildfire events${fireResult.status === "rejected" ? " using direct NASA fallback" : ""}.`);
+            logAIStream(`Loaded ${data.incident_count ?? incidents.length} reported incidents and ${data.thermal_detection_count ?? 0} NASA FIRMS heat detections${fireResult.status === "rejected" ? " using direct NASA fallback" : ""}.`);
             if(myGlobe) updateGlobeData();
           }
 
@@ -1096,16 +1341,17 @@
       }
 
       function renderCharts() {
-        if (!window.globalLayerData.wildfires.length) return;
+        const incidents = window.globalLayerData.wildfires.filter((fire) => fire.event_type !== "thermal_detection");
+        if (!incidents.length) return;
 
         let lowRisk = 0, medRisk = 0, highRisk = 0;
-        window.globalLayerData.wildfires.forEach((f) => { if (f.density_score >= 8) highRisk++; else if (f.density_score >= 3) medRisk++; else lowRisk++; });
+        incidents.forEach((f) => { if (f.density_score >= 8) highRisk++; else if (f.density_score >= 3) medRisk++; else lowRisk++; });
 
         const ctxThreat = document.getElementById("threatChart").getContext("2d");
         if (window.threatChartInstance) window.threatChartInstance.destroy();
         window.threatChartInstance = new Chart(ctxThreat, {
           type: "doughnut",
-          data: { labels: ["Critical Outbreaks", "Elevated Clusters", "Routine/Isolated"], datasets: [{ data: [highRisk, medRisk, lowRisk], backgroundColor: ["#ff453a", "#ff9f0a", "#32d74b"], borderWidth: 0 }] },
+          data: { labels: ["High-density report groups", "Grouped reports", "Single / low-density reports"], datasets: [{ data: [highRisk, medRisk, lowRisk], backgroundColor: ["#ff453a", "#ff9f0a", "#32d74b"], borderWidth: 0 }] },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { color: "#d1d5db", font: { family: "monospace", size: 10 } } } } }
         });
 
@@ -1189,14 +1435,14 @@
       // ==========================================================
       const workerCode = `
           self.onmessage = function(e) {
-              const { action, rawData } = e.data;
+            const { action, rawData, requestId } = e.data;
               if (action === 'parse_earthquakes') {
-                  const parsed = rawData.features.map(f => ({ lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], depth: f.geometry.coordinates[2], mag: f.properties.mag, title: f.properties.title }));
-                  self.postMessage({ action: 'earthquakes_done', data: parsed });
+                  const parsed = rawData.features.map(f => ({ lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], depth: f.geometry.coordinates[2], mag: f.properties.mag, title: f.properties.title, sources: f.properties.sources || ["USGS"], alertLevel: f.properties.gdacs_alert_level || f.properties.alert_level }));
+              self.postMessage({ action: 'earthquakes_done', data: parsed, requestId });
               }
               if (action === 'parse_firms') {
-                  const parsed = rawData.data.map(p => ({ lat: parseFloat(p.lat), lon: parseFloat(p.lon), frp: parseFloat(p.frp), temp: parseFloat(p.brightness) }));
-                  self.postMessage({ action: 'firms_done', data: parsed });
+                  const parsed = rawData.data.map(p => ({ lat: parseFloat(p.lat), lon: parseFloat(p.lon), frp: parseFloat(p.frp), temp: parseFloat(p.brightness), confidence: p.confidence, observed_at: p.observed_at, satellite: p.satellite, instrument: p.instrument }));
+              self.postMessage({ action: 'firms_done', data: parsed, requestId });
               }
           };
       `;
@@ -1204,15 +1450,18 @@
       const analyticsWorker = new Worker(URL.createObjectURL(workerBlob));
 
       analyticsWorker.onmessage = function (e) {
-        const { action, data } = e.data;
+        const { action, data, requestId } = e.data;
         if (!data) return;
 
         if (action === "earthquakes_done" && Array.isArray(data)) {
+          if (requestId !== window.layerRequestIds.earthquakes) return;
           window.globalLayerData.earthquakes = data;
           data.forEach((quake) => {
-            let eqColor = quake.mag > 6.0 ? "#ff453a" : "#ff9f0a";
-            const marker = L.circle([quake.lat, quake.lon], { color: eqColor, weight: 2, fillColor: eqColor, fillOpacity: 0.3, radius: quake.mag * 12000 });
-            marker.bindPopup(`<b style="color:${eqColor}">EARTHQUAKE DETECTED</b><br>${quake.title}<br><b>Size:</b> ${quake.mag} M<br><b>Depth:</b> ${quake.depth} km`);
+            const magnitude = Number.isFinite(quake.mag) ? quake.mag : null;
+            const eqColor = magnitude === null ? "#bf5af2" : magnitude > 6.0 ? "#ff453a" : "#ff9f0a";
+            const radius = magnitude === null ? 12000 : Math.max(6000, magnitude * 12000);
+            const marker = L.circle([quake.lat, quake.lon], { color: eqColor, weight: 2, fillColor: eqColor, fillOpacity: 0.3, radius });
+            marker.bindPopup(`<b style="color:${eqColor}">EARTHQUAKE REPORT</b><br>${quake.title}<br><b>Sources:</b> ${(quake.sources || ["USGS"]).join(", ")}<br><b>Magnitude:</b> ${magnitude === null ? "Not reported" : `${magnitude} M`}<br><b>Depth:</b> ${Number.isFinite(quake.depth) ? `${quake.depth} km` : "Not reported"}${quake.alertLevel ? `<br><b>GDACS alert:</b> ${quake.alertLevel}` : ""}`);
             marker.on("click", function (e) { L.DomEvent.stopPropagation(e); }); 
             window.layerGroups.earthquakes.addLayer(marker);
           });
@@ -1221,6 +1470,7 @@
         }
 
         if (action === "firms_done") {
+          if (requestId !== window.layerRequestIds.firms) return;
           window.globalLayerData.firms = data;
           
           let rawFRPTotal = 0;
@@ -1256,10 +1506,10 @@
           .atmosphereAltitude(0.18)
           .pointLat("lat")
           .pointLng("lon")
-          .pointColor((d) => d.density_score ? (d.density_score >= 8 ? "#ff453a" : d.density_score >= 3 ? "#ff9f0a" : "#32d74b") : "#00e5ff")
-          .pointAltitude((d) => d.density_score ? Math.min(d.density_score * 0.04, 0.3) : 0.05)
-          .pointRadius((d) => d.density_score ? 0.22 : 0.4)
-          .pointsTransitionDuration(1000)
+          .pointColor((d) => d.event_type === "thermal_detection" ? "#00b6d6" : !d.density_score ? "#00e5ff" : d.density_score >= 8 ? "#ff453a" : d.density_score >= 3 ? "#ff9f0a" : "#32d74b")
+          .pointAltitude((d) => d.event_type === "thermal_detection" ? 0.035 : Math.min(Math.max(d.density_score, 1) * 0.025, 0.25))
+          .pointRadius((d) => Math.min(0.65, 0.18 + Math.log2(Math.max(d.report_count || 1, 1)) * 0.08))
+          .pointsTransitionDuration(250)
           .ringLat("lat")
           .ringLng("lon")
           .ringColor((d) => d.ringColor || "#ff453a")
@@ -1290,8 +1540,26 @@
         let allCustomMeshes = [];
 
         if (window.globalLayerData.wildfires.length > 0) {
-             allPoints.push(...window.globalLayerData.wildfires);
-             const criticalFires = window.globalLayerData.wildfires.filter(fire => fire.density_score >= 8);
+             const globeCells = new Map();
+             window.globalLayerData.wildfires.forEach((fire) => {
+               const key = `${Math.floor(fire.lat / 2)}:${Math.floor(fire.lon / 2)}`;
+               if (!globeCells.has(key)) globeCells.set(key, { lat: 0, lon: 0, report_count: 0, density_score: 0, detections: 0 });
+               const cell = globeCells.get(key);
+               cell.lat += fire.lat;
+               cell.lon += fire.lon;
+               cell.report_count += 1;
+               if (fire.event_type === "thermal_detection") cell.detections += fire.detection_count || 1;
+               else cell.density_score += 1;
+             });
+             const globeFirePoints = [...globeCells.values()].map((cell) => ({
+               ...cell,
+               lat: cell.lat / cell.report_count,
+               lon: cell.lon / cell.report_count,
+               event_type: cell.density_score ? "reported_incident" : "thermal_detection",
+               title: `${cell.density_score} reported fire(s), ${cell.detections} thermal detection(s) in this area`,
+             }));
+             allPoints.push(...globeFirePoints);
+             const criticalFires = globeFirePoints.filter(fire => fire.density_score >= 8);
              allRings.push(...criticalFires);
         }
 
@@ -1310,6 +1578,10 @@
         if (window.globalLayerData.floods && window.globalLayerData.floods.length > 0) {
              allPoints.push(...window.globalLayerData.floods.map(f => ({...f, density_score: 0}))); 
         }
+
+           if (window.globalLayerData.drought && window.globalLayerData.drought.length > 0) {
+             allRings.push(...window.globalLayerData.drought.map(event => ({...event, ringColor: "#b78200", ringRadius: 3.0, ringSpeed: 0.5})));
+           }
 
         myGlobe.pointsData(allPoints);
         myGlobe.ringsData(allRings);
